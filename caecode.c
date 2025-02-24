@@ -16,6 +16,9 @@ char *last_saved_content = NULL; // Saves the last saved content
 GtkSourceStyleSchemeManager *theme_manager; // Manager for themes
 gboolean is_dark_theme = TRUE; // Track current theme state
 
+char current_folder[1024] = ""; // Saves the path of the currently opened folder
+
+
 
 // Load file content into the text view
 void load_file(const char *filepath) {
@@ -46,6 +49,8 @@ void load_file(const char *filepath) {
     gtk_source_buffer_set_language(text_buffer, language);
 
     mark_unsaved_file(filepath, FALSE); // Mark as saved
+
+    update_status_with_relative_path();
 }
 
 
@@ -69,6 +74,67 @@ void save_file() {
     g_free(text);
 
     mark_unsaved_file(current_file, FALSE); // Remove mark after save
+}
+
+
+// Update status bar with the relative path of the current file
+void update_status_with_relative_path() {
+    if (strlen(current_file) == 0) {
+        set_status_message("No file opened");
+        return;
+    }
+
+    if (strlen(current_folder) == 0) {
+        set_status_message("No folder opened");
+        return;
+    }
+
+    // Get the relative path
+    char relative_path[1024];
+    if (g_str_has_prefix(current_file, current_folder)) {
+        snprintf(relative_path, sizeof(relative_path), "%s", current_file + strlen(current_folder) + 1); // +1 to skip the '/'
+    } else {
+        snprintf(relative_path, sizeof(relative_path), "%s", current_file); // Use absolute path if not in base path
+    }
+
+    // Update status bar with the relative path
+    set_status_message(relative_path);
+}
+
+
+void update_status_with_unsaved_mark() {
+    if (strlen(current_file) == 0) {
+        set_status_message("No file opened");
+        return;
+    }
+
+    if (strlen(current_folder) == 0) {
+        set_status_message("No folder opened");
+        return;
+    }
+
+    // Get relative path
+    char relative_path[1024];
+    if (g_str_has_prefix(current_file, current_folder)) {
+        snprintf(relative_path, sizeof(relative_path), "%s", current_file + strlen(current_folder) + 1);
+    } else {
+        snprintf(relative_path, sizeof(relative_path), "%s", current_file);
+    }
+
+    // Check if there are any changes to the currently opened file.
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(text_buffer), &start, &end);
+    char *current_text = gtk_text_buffer_get_text(GTK_TEXT_BUFFER(text_buffer), &start, &end, FALSE);
+
+    gboolean is_same = (last_saved_content && strcmp(current_text, last_saved_content) == 0);
+    g_free(current_text);
+
+    // Add '*' mark if the file is not saved yet.
+    char display_path[1050]; // Buffer for relative path + " *"
+    snprintf(display_path, sizeof(display_path), "%s%s", relative_path, is_same ? "" : " *");
+
+    // Update status bar
+    set_status_message(display_path);
 }
 
 
@@ -129,6 +195,9 @@ void open_folder(GtkWidget *widget, gpointer data) {
 
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
         char *folder_path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+
+        strncpy(current_folder, folder_path, sizeof(current_folder)); // Save the currently opened folder
+
 
         gtk_tree_store_clear(tree_store);
         g_list_free_full(file_list, g_free); // Clear previous file list
@@ -324,6 +393,7 @@ void on_text_changed(GtkTextBuffer *buffer, gpointer user_data) {
         gboolean is_same = strcmp(current_text, last_saved_content) == 0;
 
         mark_unsaved_file(current_file, !is_same); // Remove mark if same
+        update_status_with_unsaved_mark(); // Update status bar with unsaved mark
 
         g_free(current_text);
     }
@@ -412,7 +482,8 @@ void activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_margin_bottom(status_bar, 1); // Small bottom margin
 
     // Add file path placeholder to status bar
-    set_status_message("No file loaded");
+    update_status_with_relative_path();
+
 
     g_signal_connect(text_buffer, "changed", G_CALLBACK(on_text_changed), NULL);
 
