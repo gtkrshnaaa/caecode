@@ -1,32 +1,31 @@
 #include <gtk/gtk.h>
 #include <gtksourceview/gtksource.h>
 
-// Global variable for last saved content
-char *last_saved_content = NULL;
-
 // Callback function for handling keyboard shortcuts
 gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
-    GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(widget));
+    GtkSourceBuffer *buffer = GTK_SOURCE_BUFFER(gtk_text_view_get_buffer(GTK_TEXT_VIEW(widget)));
 
     // Ctrl key is pressed
     if (event->state & GDK_CONTROL_MASK) {
         switch (gdk_keyval_to_upper(event->keyval)) {
             case 'C': // Copy
-                gtk_text_buffer_copy_clipboard(buffer, gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+                gtk_text_buffer_copy_clipboard(GTK_TEXT_BUFFER(buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
                 return TRUE;
             case 'V': // Paste
-                gtk_text_buffer_paste_clipboard(buffer, gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), NULL, TRUE);
+                gtk_text_buffer_paste_clipboard(GTK_TEXT_BUFFER(buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), NULL, TRUE);
                 return TRUE;
             case 'X': // Cut
-                gtk_text_buffer_cut_clipboard(buffer, gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), TRUE);
+                gtk_text_buffer_cut_clipboard(GTK_TEXT_BUFFER(buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), TRUE);
                 return TRUE;
-            case 'Z': // Undo (basic undo using revert to last saved state)
-                if (last_saved_content) {
-                    gtk_text_buffer_set_text(buffer, last_saved_content, -1);
+            case 'Z': // Undo using GtkSourceBuffer built-in functionality
+                if (gtk_source_buffer_can_undo(buffer)) {
+                    gtk_source_buffer_undo(buffer);
                 }
                 return TRUE;
-            case 'Y': // Redo (redo not implemented yet)
-                // Placeholder for redo functionality
+            case 'Y': // Redo using GtkSourceBuffer built-in functionality
+                if (gtk_source_buffer_can_redo(buffer)) {
+                    gtk_source_buffer_redo(buffer);
+                }
                 return TRUE;
         }
     }
@@ -57,6 +56,9 @@ void activate(GtkApplication *app, gpointer user_data) {
     lang_manager = gtk_source_language_manager_get_default();
     language = gtk_source_language_manager_get_language(lang_manager, "c");
     source_buffer = gtk_source_buffer_new_with_language(language);
+    
+    // Enable undo/redo functionality
+    gtk_source_buffer_set_highlight_syntax(source_buffer, TRUE);
 
     // Create source view
     source_view = gtk_source_view_new_with_buffer(source_buffer);
@@ -93,10 +95,6 @@ int main(int argc, char **argv) {
     gtk_init(&argc, &argv);
     activate(NULL, NULL);
     gtk_main();
-
-    if (last_saved_content) {
-        free(last_saved_content);
-    }
 
     return 0;
 }
