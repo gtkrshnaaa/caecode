@@ -13,6 +13,30 @@ You can download the latest version of Caecode here:
 
 ---
 
+# Caecode Screenshots
+
+Here are some screenshots from the Caecode app:
+
+![Screenshot 1](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-25.png)
+![Screenshot 2](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-37.png)
+![Screenshot 3](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-42.png)
+![Screenshot 4](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-47.png)
+![Screenshot 5](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-52.png)
+![Screenshot 6](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-58.png)
+![Screenshot 7](assets/screenshot/Screenshot%20from%202025-02-24%2021-56-09.png)
+![Screenshot 8](assets/screenshot/Screenshot%20from%202025-02-24%2021-56-14.png)
+![Screenshot 9](assets/screenshot/Screenshot%20from%202025-02-24%2021-56-24.png)
+![Screenshot 10](assets/screenshot/Screenshot%20from%202025-02-24%2021-56-44.png)
+![Screenshot 11](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-06.png)
+![Screenshot 12](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-13.png)
+![Screenshot 13](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-17.png)
+![Screenshot 14](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-39.png)
+![Screenshot 15](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-42.png)
+![Screenshot 16](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-45.png)
+![Screenshot 17](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-47.png)
+![Screenshot 18](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-50.png)
+
+---
 
 ## 🎯 Key Features
 
