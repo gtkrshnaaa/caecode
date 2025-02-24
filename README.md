@@ -26,7 +26,7 @@ You can download the latest version of Caecode here:
 
 ---
 
-## 💻 Installation
+## 💻 Run From Source
 
 ### 1. **Dependencies**
 Make sure you have `GTK+ 3` and `GtkSourceView 3` installed. On Ubuntu, run:  
