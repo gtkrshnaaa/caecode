@@ -3,12 +3,63 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 
 // Global variables
-GtkWidget *window, *text_view, *scrolled_window, *sidebar;
+GtkWidget *window, *text_view, *scrolled_window, *sidebar, *sidebar_list;
 GtkSourceBuffer *source_buffer;
 gchar *last_saved_content = NULL;
 gboolean sidebar_visible = TRUE;
+
+// Function to clear the sidebar list
+void clear_sidebar() {
+    GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(sidebar_list));
+    GtkListStore *store = GTK_LIST_STORE(model);
+    gtk_list_store_clear(store);
+}
+
+// Function to populate the sidebar with files from the selected folder
+void populate_sidebar(const gchar *folder_path) {
+    clear_sidebar();
+
+    DIR *dir = opendir(folder_path);
+    if (!dir) {
+        return;
+    }
+
+    struct dirent *entry;
+    GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(sidebar_list)));
+    GtkTreeIter iter;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_name[0] == '.') continue;
+
+        gtk_list_store_append(store, &iter);
+        gtk_list_store_set(store, &iter, 0, entry->d_name, -1);
+    }
+
+    closedir(dir);
+}
+
+// Function to open folder
+void open_folder() {
+    GtkWidget *dialog = gtk_file_chooser_dialog_new(
+        "Open Folder",
+        GTK_WINDOW(window),
+        GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+        "_Cancel", GTK_RESPONSE_CANCEL,
+        "_Open", GTK_RESPONSE_ACCEPT,
+        NULL
+    );
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        gchar *folder_path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+        populate_sidebar(folder_path);
+        g_free(folder_path);
+    }
+
+    gtk_widget_destroy(dialog);
+}
 
 // Function to save file content
 void save_file(const gchar *filename) {
@@ -27,7 +78,7 @@ void save_file(const gchar *filename) {
     g_free(text);
 }
 
-// Shortcut callback for saving file
+// Shortcut callback for keyboard events
 gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
     if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_s) {
         save_file("output.txt");
@@ -36,6 +87,10 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
     if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_b) {
         sidebar_visible = !sidebar_visible;
         gtk_widget_set_visible(sidebar, sidebar_visible);
+        return TRUE;
+    }
+    if ((event->state & GDK_CONTROL_MASK) && event->keyval == GDK_KEY_o) {
+        open_folder();
         return TRUE;
     }
     return FALSE;
@@ -63,6 +118,16 @@ void init_text_view() {
 void init_sidebar() {
     sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_widget_set_size_request(sidebar, 200, -1);
+
+    GtkListStore *store = gtk_list_store_new(1, G_TYPE_STRING);
+    sidebar_list = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+    g_object_unref(store);
+
+    GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
+    GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes("Files", renderer, "text", 0, NULL);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(sidebar_list), column);
+
+    gtk_box_pack_start(GTK_BOX(sidebar), sidebar_list, TRUE, TRUE, 0);
 }
 
 // Activate function to build UI
