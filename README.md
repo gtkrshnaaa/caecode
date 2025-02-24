@@ -15,7 +15,7 @@ You can download the latest version of Caecode here:
 
 # Caecode Screenshots
 
-Here are some screenshots from the Caecode app:
+Here are some screenshots from the Caecode app.
 
 ![Screenshot 1](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-25.png)
 ![Screenshot 2](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-37.png)
