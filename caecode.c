@@ -4,6 +4,36 @@
 // Global variable for last saved content
 char *last_saved_content = NULL;
 
+// Callback function for handling keyboard shortcuts
+gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
+    GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(widget));
+
+    // Ctrl key is pressed
+    if (event->state & GDK_CONTROL_MASK) {
+        switch (gdk_keyval_to_upper(event->keyval)) {
+            case 'C': // Copy
+                gtk_text_buffer_copy_clipboard(buffer, gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+                return TRUE;
+            case 'V': // Paste
+                gtk_text_buffer_paste_clipboard(buffer, gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), NULL, TRUE);
+                return TRUE;
+            case 'X': // Cut
+                gtk_text_buffer_cut_clipboard(buffer, gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), TRUE);
+                return TRUE;
+            case 'Z': // Undo (basic undo using revert to last saved state)
+                if (last_saved_content) {
+                    gtk_text_buffer_set_text(buffer, last_saved_content, -1);
+                }
+                return TRUE;
+            case 'Y': // Redo (redo not implemented yet)
+                // Placeholder for redo functionality
+                return TRUE;
+        }
+    }
+
+    return FALSE; // Propagate the event further
+}
+
 // Initialize UI
 void activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *window;
@@ -32,6 +62,9 @@ void activate(GtkApplication *app, gpointer user_data) {
     source_view = gtk_source_view_new_with_buffer(source_buffer);
     gtk_widget_set_hexpand(source_view, TRUE);
     gtk_widget_set_vexpand(source_view, TRUE);
+
+    // Connect key press event
+    g_signal_connect(source_view, "key-press-event", G_CALLBACK(on_key_press), NULL);
 
     // Enable line numbers
     gtk_source_view_set_show_line_numbers(GTK_SOURCE_VIEW(source_view), TRUE);
