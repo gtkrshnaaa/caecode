@@ -389,6 +389,22 @@ void show_search_popup() {
 }
 
 
+void reload_folder() {
+    if (strlen(current_folder) == 0) {
+        // Tidak ada folder yang terbuka
+        return;
+    }
+
+    // Clear the current view
+    gtk_tree_store_clear(tree_store);
+    g_list_free_full(file_list, g_free);  // Clear previous file list
+    file_list = NULL;  // Reset file list
+
+    // Reload the folder by populating it again
+    populate_tree(current_folder, NULL);
+}
+
+
 // Handle search popup key events
 gboolean on_search_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
     if (event->keyval == GDK_KEY_Escape) {
@@ -415,6 +431,7 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
             case GDK_KEY_x: gtk_text_buffer_cut_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), TRUE); return TRUE;
             case GDK_KEY_z: if (gtk_source_buffer_can_undo(text_buffer)) gtk_source_buffer_undo(text_buffer); return TRUE;
             case GDK_KEY_y: if (gtk_source_buffer_can_redo(text_buffer)) gtk_source_buffer_redo(text_buffer); return TRUE;
+            case GDK_KEY_r: reload_folder(); return TRUE;
         }
     }
     return FALSE;
