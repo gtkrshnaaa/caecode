@@ -439,6 +439,41 @@ gboolean on_search_key_press(GtkWidget *widget, GdkEventKey *event, gpointer use
     return FALSE;
 }
 
+
+
+void move_cursor_up(GtkTextBuffer *buffer) {
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(buffer, &iter, gtk_text_buffer_get_insert(buffer)); // Get the current cursor position
+    if (gtk_text_iter_backward_line(&iter)) { // Move up one line
+        gtk_text_buffer_place_cursor(buffer, &iter);
+    }
+}
+
+void move_cursor_down(GtkTextBuffer *buffer) {
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(buffer, &iter, gtk_text_buffer_get_insert(buffer)); // Get the current cursor position
+    if (gtk_text_iter_forward_line(&iter)) { // Move down one line
+        gtk_text_buffer_place_cursor(buffer, &iter);
+    }
+}
+
+void move_cursor_left(GtkTextBuffer *buffer) {
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(buffer, &iter, gtk_text_buffer_get_insert(buffer)); // Get the current cursor position
+    if (gtk_text_iter_backward_char(&iter)) { // Move left one character
+        gtk_text_buffer_place_cursor(buffer, &iter);
+    }
+}
+
+void move_cursor_right(GtkTextBuffer *buffer) {
+    GtkTextIter iter;
+    gtk_text_buffer_get_iter_at_mark(buffer, &iter, gtk_text_buffer_get_insert(buffer)); // Get the current cursor position
+    if (gtk_text_iter_forward_char(&iter)) { // Move right one character
+        gtk_text_buffer_place_cursor(buffer, &iter);
+    }
+}
+
+
 // Keyboard shortcuts
 gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
     if ((event->state & GDK_CONTROL_MASK) != 0) {
@@ -455,6 +490,12 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
             case GDK_KEY_y: if (gtk_source_buffer_can_redo(text_buffer)) gtk_source_buffer_redo(text_buffer); return TRUE;
             case GDK_KEY_r: reload_folder(); return TRUE;
             case GDK_KEY_q: close_folder(); return TRUE;
+
+            // Custom shortcuts for moving the cursor
+            case GDK_KEY_i: move_cursor_up(GTK_TEXT_BUFFER(text_buffer)); return TRUE; // Ctrl + I for up
+            case GDK_KEY_k: move_cursor_down(GTK_TEXT_BUFFER(text_buffer)); return TRUE; // Ctrl + K for down
+            case GDK_KEY_j: move_cursor_left(GTK_TEXT_BUFFER(text_buffer)); return TRUE; // Ctrl + J for left
+            case GDK_KEY_l: move_cursor_right(GTK_TEXT_BUFFER(text_buffer)); return TRUE; // Ctrl + L for right
         }
     }
     return FALSE;
