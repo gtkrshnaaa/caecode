@@ -424,10 +424,11 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 void init_search_popup() {
     search_popup = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_transient_for(GTK_WINDOW(search_popup), GTK_WINDOW(window));
-    gtk_window_set_title(GTK_WINDOW(search_popup), "Search File");
-    gtk_window_set_default_size(GTK_WINDOW(search_popup), 400, 300);
+    // gtk_window_set_title(GTK_WINDOW(search_popup), "Search File");
+    gtk_window_set_default_size(GTK_WINDOW(search_popup), 600, 300);
     gtk_window_set_modal(GTK_WINDOW(search_popup), TRUE);
     gtk_window_set_position(GTK_WINDOW(search_popup), GTK_WIN_POS_CENTER);
+    gtk_window_set_decorated(GTK_WINDOW(search_popup), FALSE);
 
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_container_add(GTK_CONTAINER(search_popup), vbox);
