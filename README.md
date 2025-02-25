@@ -81,6 +81,7 @@ make clean
 | `Ctrl + X`      | Cut text                      |
 | `Ctrl + Z`      | Undo                          |
 | `Ctrl + Y`      | Redo                          |
+| `Ctrl + R`      | Reload folder tree            |
 | `Esc` (in popup) | Close search popup            |
 | `Enter` (in popup) | Open selected file from search |
 
