@@ -5,6 +5,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <glib.h>
 
 GtkWidget *window, *tree_view, *text_view, *status_bar, *sidebar_scrolled_window, *scrolled_window, *box, *search_popup, *search_entry, *search_list;
 GtkSourceBuffer *text_buffer;
@@ -137,7 +138,12 @@ void update_status_with_unsaved_mark() {
     set_status_message(display_path);
 }
 
-
+// Comparator to sort file/folder names
+gint sort_names(gconstpointer a, gconstpointer b) {
+    const char *name_a = *(const char **)a;
+    const char *name_b = *(const char **)b;
+    return g_strcmp0(name_a, name_b);
+}
 
 // Recursively populate the tree store and file list
 void populate_tree(const char *folder_path, GtkTreeIter *parent) {
@@ -145,6 +151,10 @@ void populate_tree(const char *folder_path, GtkTreeIter *parent) {
     if (!dir) return;
 
     struct dirent *entry;
+    GList *folders = NULL; // List for folders
+    GList *files = NULL;   // List for files
+
+    // Pisahkan folder dan file
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
 
@@ -152,21 +162,52 @@ void populate_tree(const char *folder_path, GtkTreeIter *parent) {
         snprintf(path, sizeof(path), "%s/%s", folder_path, entry->d_name);
 
         struct stat st;
-        stat(path, &st);
+        if (stat(path, &st) == 0) {
+            if (S_ISDIR(st.st_mode)) {
+                folders = g_list_insert_sorted(folders, g_strdup(entry->d_name), (GCompareFunc)g_ascii_strcasecmp);
+            } else {
+                files = g_list_insert_sorted(files, g_strdup(entry->d_name), (GCompareFunc)g_ascii_strcasecmp);
+            }
+        }
+    }
+    closedir(dir);
+
+    // Show folders first
+    for (GList *l = folders; l != NULL; l = l->next) {
+        const char *folder_name = (const char *)l->data;
+        char display_name[1024];
+        snprintf(display_name, sizeof(display_name), "%s/", folder_name); // Add "/"
+
+        char full_path[1024];
+        snprintf(full_path, sizeof(full_path), "%s/%s", folder_path, folder_name);
 
         GtkTreeIter iter;
         gtk_tree_store_append(tree_store, &iter, parent);
-        gtk_tree_store_set(tree_store, &iter, 0, entry->d_name, 1, g_strdup(path), -1);
+        gtk_tree_store_set(tree_store, &iter, 0, display_name, 1, g_strdup(full_path), -1);
 
-        if (S_ISDIR(st.st_mode)) {
-            populate_tree(path, &iter);
-        } else {
-            file_list = g_list_append(file_list, g_strdup(path)); // Add to file list
-        }
+        // Recursive folder contents
+        populate_tree(full_path, &iter);
     }
 
-    closedir(dir);
+    // Show files after folder
+    for (GList *l = files; l != NULL; l = l->next) {
+        const char *file_name = (const char *)l->data;
+
+        char full_path[1024];
+        snprintf(full_path, sizeof(full_path), "%s/%s", folder_path, file_name);
+
+        GtkTreeIter iter;
+        gtk_tree_store_append(tree_store, &iter, parent);
+        gtk_tree_store_set(tree_store, &iter, 0, file_name, 1, g_strdup(full_path), -1);
+        file_list = g_list_append(file_list, g_strdup(full_path));
+    }
+
+    // Clear list memory
+    g_list_free_full(folders, g_free);
+    g_list_free_full(files, g_free);
 }
+
+
 
 // Open file on row activation in the sidebar
 void on_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data) {
