@@ -391,7 +391,7 @@ void show_search_popup() {
 
 void reload_folder() {
     if (strlen(current_folder) == 0) {
-        // Tidak ada folder yang terbuka
+        // No folders open
         return;
     }
 
@@ -403,6 +403,28 @@ void reload_folder() {
     // Reload the folder by populating it again
     populate_tree(current_folder, NULL);
 }
+
+void close_folder() {
+    if (strlen(current_folder) == 0) {
+        set_status_message("No folder is currently opened");
+        return;
+    }
+
+    // Clear the current folder content in the sidebar
+    gtk_tree_store_clear(tree_store);
+    g_list_free_full(file_list, g_free); // Clear previous file list
+    file_list = NULL; // Reset file list
+    memset(current_folder, 0, sizeof(current_folder)); // Clear the current folder path
+
+    // Clear the editor content as well when folder is closed
+    if (text_buffer != NULL) {
+        gtk_text_buffer_set_text(text_buffer, "", -1); // Clear text buffer
+    }
+
+    set_status_message("Folder closed and editor cleared");
+}
+
+
 
 
 // Handle search popup key events
@@ -432,6 +454,7 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
             case GDK_KEY_z: if (gtk_source_buffer_can_undo(text_buffer)) gtk_source_buffer_undo(text_buffer); return TRUE;
             case GDK_KEY_y: if (gtk_source_buffer_can_redo(text_buffer)) gtk_source_buffer_redo(text_buffer); return TRUE;
             case GDK_KEY_r: reload_folder(); return TRUE;
+            case GDK_KEY_q: close_folder(); return TRUE;
         }
     }
     return FALSE;
