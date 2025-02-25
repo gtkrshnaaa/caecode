@@ -144,6 +144,7 @@ void save_file() {
     g_free(text);
 
     mark_unsaved_file(current_file, FALSE); // Remove mark after save
+    update_status_with_unsaved_mark();
 }
 
 
@@ -531,9 +532,9 @@ void switch_theme() {
 
 // Function to add status to status bar
 void set_status_message(const char *message) {
-    gtk_statusbar_push(GTK_STATUSBAR(status_bar), 0, message);
+    gtk_statusbar_pop(GTK_STATUSBAR(status_bar), 0); // Delete old messages
+    gtk_statusbar_push(GTK_STATUSBAR(status_bar), 0, message); // Show new messages
 }
-
 
 
 // Initialize UI
