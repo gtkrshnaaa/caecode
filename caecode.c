@@ -20,6 +20,72 @@ gboolean is_dark_theme = TRUE; // Track current theme state
 char current_folder[1024] = ""; // Saves the path of the currently opened folder
 
 
+void select_file_in_sidebar(const char *filepath) {
+    GtkTreeModel *model = GTK_TREE_MODEL(tree_store);
+    GtkTreeIter iter;
+
+    if (gtk_tree_model_get_iter_first(model, &iter)) {
+        do {
+            char *path;
+            gtk_tree_model_get(model, &iter, 1, &path, -1);
+
+            if (path && strcmp(path, filepath) == 0) {
+                GtkTreePath *tree_path = gtk_tree_model_get_path(model, &iter);
+
+                // Expand all parent folders
+                gtk_tree_view_expand_to_path(GTK_TREE_VIEW(tree_view), tree_path);
+
+                // Highlight selected files
+                gtk_tree_view_set_cursor(GTK_TREE_VIEW(tree_view), tree_path, NULL, FALSE);
+                gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree_view), tree_path, NULL, TRUE, 0.5, 0.0);
+
+                gtk_tree_path_free(tree_path);
+                g_free(path);
+                return;
+            }
+
+            // Check child nodes recursively
+            GtkTreeIter child_iter;
+            if (gtk_tree_model_iter_children(model, &child_iter, &iter)) {
+                select_file_in_sidebar_recursive(model, &child_iter, filepath);
+            }
+
+            g_free(path);
+        } while (gtk_tree_model_iter_next(model, &iter));
+    }
+}
+
+// Recursive function with auto-expand parent folder
+void select_file_in_sidebar_recursive(GtkTreeModel *model, GtkTreeIter *iter, const char *filepath) {
+    do {
+        char *path;
+        gtk_tree_model_get(model, iter, 1, &path, -1);
+
+        if (path && strcmp(path, filepath) == 0) {
+            GtkTreePath *tree_path = gtk_tree_model_get_path(model, iter);
+
+            // Expand all parent folders
+            gtk_tree_view_expand_to_path(GTK_TREE_VIEW(tree_view), tree_path);
+
+            // Highlight files
+            gtk_tree_view_set_cursor(GTK_TREE_VIEW(tree_view), tree_path, NULL, FALSE);
+            gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree_view), tree_path, NULL, TRUE, 0.5, 0.0);
+
+            gtk_tree_path_free(tree_path);
+            g_free(path);
+            return;
+        }
+
+        // Recursive for child iter
+        GtkTreeIter child_iter;
+        if (gtk_tree_model_iter_children(model, &child_iter, iter)) {
+            select_file_in_sidebar_recursive(model, &child_iter, filepath);
+        }
+
+        g_free(path);
+    } while (gtk_tree_model_iter_next(model, iter));
+}
+
 
 // Load file content into the text view
 void load_file(const char *filepath) {
@@ -52,6 +118,9 @@ void load_file(const char *filepath) {
     mark_unsaved_file(filepath, FALSE); // Mark as saved
 
     update_status_with_relative_path();
+
+    select_file_in_sidebar(filepath);
+
 }
 
 
