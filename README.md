@@ -17,24 +17,9 @@ You can download the latest version of Caecode here:
 
 Here are some screenshots from the Caecode app.
 
-![Screenshot 1](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-25.png)
-![Screenshot 2](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-37.png)
-![Screenshot 3](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-42.png)
-![Screenshot 4](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-47.png)
-![Screenshot 5](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-52.png)
-![Screenshot 6](assets/screenshot/Screenshot%20from%202025-02-24%2021-55-58.png)
-![Screenshot 7](assets/screenshot/Screenshot%20from%202025-02-24%2021-56-09.png)
-![Screenshot 8](assets/screenshot/Screenshot%20from%202025-02-24%2021-56-14.png)
-![Screenshot 9](assets/screenshot/Screenshot%20from%202025-02-24%2021-56-24.png)
-![Screenshot 10](assets/screenshot/Screenshot%20from%202025-02-24%2021-56-44.png)
-![Screenshot 11](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-06.png)
-![Screenshot 12](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-13.png)
-![Screenshot 13](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-17.png)
-![Screenshot 14](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-39.png)
-![Screenshot 15](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-42.png)
-![Screenshot 16](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-45.png)
-![Screenshot 17](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-47.png)
-![Screenshot 18](assets/screenshot/Screenshot%20from%202025-02-24%2021-57-50.png)
+![Screenshot 1](assets/screenshot/Screenshot%20from%202025-02-25%2011-13-52.png)
+![Screenshot 2](assets/screenshot/Screenshot%20from%202025-02-25%2011-14-12.png)
+
 
 ---
 
@@ -104,6 +89,8 @@ make clean
 ## 🌙 Themes
 
 Caecode supports several built-in **GtkSourceView** themes. Use `Ctrl + M` to cycle through themes:  
+- Yaru Dark  
+- Yaru  
 - Classic  
 - Cobalt  
 - Kate  
@@ -111,8 +98,30 @@ Caecode supports several built-in **GtkSourceView** themes. Use `Ctrl + M` to cy
 - Solarized Dark  
 - Solarized Light  
 - Tango  
-- Yaru  
-- Yaru Dark  
+
+
+### Screenshots
+
+Here are some theme screenshots from the Caecode app.
+
+![Theme Screenshot 1](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-14-50.png)
+![Theme Screenshot 2](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-15-02.png)
+![Theme Screenshot 3](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-15-14.png)
+![Theme Screenshot 4](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-15-19.png)
+![Theme Screenshot 5](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-15-22.png)
+![Theme Screenshot 6](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-15-24.png)
+![Theme Screenshot 7](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-15-28.png)
+![Theme Screenshot 8](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-15-31.png)
+![Theme Screenshot 9](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-15-34.png)
+![Theme Screenshot 10](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-15-55.png)
+![Theme Screenshot 11](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-15-59.png)
+![Theme Screenshot 12](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-16-03.png)
+![Theme Screenshot 13](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-16-06.png)
+![Theme Screenshot 14](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-16-08.png)
+![Theme Screenshot 15](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-16-10.png)
+![Theme Screenshot 16](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-16-13.png)
+![Theme Screenshot 17](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-16-15.png)
+![Theme Screenshot 18](assets/screenshot/caecode-theme/Screenshot%20from%202025-02-25%2011-16-17.png)
 
 ---
 
