@@ -83,6 +83,10 @@ make clean
 | `Ctrl + Y`      | Redo                          |
 | `Ctrl + R`      | Reload folder tree            |
 | `Ctrl + Q`      | Close opened folder           |
+| `Ctrl + I`      | Move cursor up                |
+| `Ctrl + K`      | Move cursor down              |
+| `Ctrl + J`      | Move cursor left              |
+| `Ctrl + L`      | Move cursor right             |
 | `Esc` (in popup) | Close search popup            |
 | `Enter` (in popup) | Open selected file from search |
 
