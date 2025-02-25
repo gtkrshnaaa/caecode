@@ -9,7 +9,7 @@
 
 You can download the latest version of Caecode here:
 
-[Download Caecode v0.0.1 (.deb)](https://github.com/gtkrshnaaa/caecode/releases/download/v0.0.1/caecode_0.0.1.deb)
+[Download Caecode v0.0.2 (.deb)](https://github.com/gtkrshnaaa/caecode/releases/download/v0.0.2/caecode_0.0.2.deb)
 
 ---
 
