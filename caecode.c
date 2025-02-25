@@ -571,6 +571,11 @@ void activate(GtkApplication *app, gpointer user_data) {
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     text_buffer = GTK_SOURCE_BUFFER(gtk_source_buffer_new(NULL));
     text_view = gtk_source_view_new_with_buffer(text_buffer);
+
+    // Set tab width to 2 spaces
+    gtk_source_view_set_tab_width(GTK_SOURCE_VIEW(text_view), 4);
+    gtk_source_view_set_insert_spaces_instead_of_tabs(GTK_SOURCE_VIEW(text_view), TRUE);
+
     gtk_source_view_set_show_line_numbers(GTK_SOURCE_VIEW(text_view), TRUE);
     gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text_view), GTK_WRAP_NONE);
     gtk_text_view_set_top_margin(GTK_TEXT_VIEW(text_view), 25);
