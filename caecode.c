@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <glib.h>
+#include <gio/gio.h>
 
 GtkWidget *window, *tree_view, *text_view, *status_bar, *sidebar_scrolled_window, *scrolled_window, *box, *search_popup, *search_entry, *search_list;
 GtkSourceBuffer *text_buffer;
@@ -15,9 +16,34 @@ gboolean sidebar_visible = TRUE;
 char current_file[1024] = "";
 char *last_saved_content = NULL; // Saves the last saved content
 GtkSourceStyleSchemeManager *theme_manager; // Manager for themes
-gboolean is_dark_theme = TRUE; // Track current theme state
+// gboolean is_dark_theme = TRUE; // Track current theme state (unused)
 
 char current_folder[1024] = ""; // Saves the path of the currently opened folder
+
+// --- Async population state ---
+typedef struct {
+    char *path;
+    GtkTreeIter parent_iter;   // valid only if has_parent == TRUE
+    gboolean has_parent;
+} DirTask;
+
+typedef struct {
+    GQueue *queue;        // queue of DirTask*
+    gboolean cancelled;   // set TRUE to cancel ongoing population
+    guint source_id;      // idle source id
+} PopulateContext;
+
+static PopulateContext *populate_ctx = NULL;
+
+// --- Forward declarations ---
+void set_status_message(const char *message);
+void update_status_with_relative_path();
+void update_status_with_unsaved_mark();
+void mark_unsaved_file(const char *filepath, gboolean unsaved);
+void switch_theme();
+void select_file_in_sidebar_recursive(GtkTreeModel *model, GtkTreeIter *iter, const char *filepath);
+void load_file_async(const char *filepath);
+static void on_window_destroy(GtkWidget *w, gpointer user_data);
 
 
 void select_file_in_sidebar(const char *filepath) {
@@ -87,64 +113,90 @@ void select_file_in_sidebar_recursive(GtkTreeModel *model, GtkTreeIter *iter, co
 }
 
 
-// Load file content into the text view
-void load_file(const char *filepath) {
-    FILE *file = fopen(filepath, "r");
-    if (!file) return;
+// Async file load helpers
+typedef struct {
+    char *path;
+} LoadCtx;
 
-    strncpy(current_file, filepath, sizeof(current_file));
+static void on_file_loaded(GObject *src, GAsyncResult *res, gpointer user_data) {
+    LoadCtx *ctx = (LoadCtx *)user_data;
+    gsize len = 0;
+    char *contents = NULL;
+    GError *err = NULL;
+    gboolean ok = g_file_load_contents_finish(G_FILE(src), res, &contents, &len, NULL, &err);
+    if (!ok) {
+        if (err) {
+            set_status_message(err->message);
+            g_error_free(err);
+        }
+        g_free(ctx->path);
+        g_free(ctx);
+        return;
+    }
 
-    fseek(file, 0, SEEK_END);
-    long length = ftell(file);
-    rewind(file);
+    // Apply to UI (main thread)
+    g_strlcpy(current_file, ctx->path, sizeof(current_file));
+    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_buffer), contents, (gint)len);
 
-    char *content = malloc(length + 1);
-    fread(content, 1, length, file);
-    content[length] = '\0';
-
-    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_buffer), content, -1);
-
-    // Save the last saved content snapshot
     if (last_saved_content) free(last_saved_content);
-    last_saved_content = strdup(content);
-
-    free(content);
-    fclose(file);
+    last_saved_content = g_strdup(contents);
 
     GtkSourceLanguageManager *lm = gtk_source_language_manager_get_default();
-    GtkSourceLanguage *language = gtk_source_language_manager_guess_language(lm, filepath, NULL);
+    GtkSourceLanguage *language = gtk_source_language_manager_guess_language(lm, ctx->path, NULL);
     gtk_source_buffer_set_language(text_buffer, language);
 
-    mark_unsaved_file(filepath, FALSE); // Mark as saved
-
+    mark_unsaved_file(ctx->path, FALSE);
     update_status_with_relative_path();
+    select_file_in_sidebar(ctx->path);
 
-    select_file_in_sidebar(filepath);
+    g_free(contents);
+    g_free(ctx->path);
+    g_free(ctx);
+}
 
+void load_file_async(const char *filepath) {
+    GFile *gf = g_file_new_for_path(filepath);
+    LoadCtx *ctx = g_new0(LoadCtx, 1);
+    ctx->path = g_strdup(filepath);
+    g_file_load_contents_async(gf, NULL, on_file_loaded, ctx);
+    g_object_unref(gf);
 }
 
 
-// Save the current file
+// Save the current file (async)
+static void on_file_saved(GObject *src, GAsyncResult *res, gpointer user_data) {
+    GError *err = NULL;
+    gboolean ok = g_file_replace_contents_finish(G_FILE(src), res, NULL, &err);
+    if (!ok) {
+        if (err) {
+            set_status_message(err->message);
+            g_error_free(err);
+        }
+        return;
+    }
+    // success
+    mark_unsaved_file(current_file, FALSE);
+    update_status_with_unsaved_mark();
+}
+
 void save_file() {
     if (strlen(current_file) == 0) return;
-
-    FILE *file = fopen(current_file, "w");
-    if (!file) return;
 
     GtkTextIter start, end;
     gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(text_buffer), &start, &end);
     char *text = gtk_text_buffer_get_text(GTK_TEXT_BUFFER(text_buffer), &start, &end, FALSE);
-    fprintf(file, "%s", text);
-    fclose(file);
 
-    // Update the last saved content snapshot
     if (last_saved_content) free(last_saved_content);
-    last_saved_content = strdup(text);
+    last_saved_content = g_strdup(text);
+
+    GFile *gf = g_file_new_for_path(current_file);
+    g_file_replace_contents_async(gf,
+        text, strlen(text),
+        NULL, FALSE, G_FILE_CREATE_NONE,
+        NULL, on_file_saved, NULL);
+    g_object_unref(gf);
 
     g_free(text);
-
-    mark_unsaved_file(current_file, FALSE); // Remove mark after save
-    update_status_with_unsaved_mark();
 }
 
 
@@ -215,66 +267,118 @@ gint sort_names(gconstpointer a, gconstpointer b) {
     return g_strcmp0(name_a, name_b);
 }
 
-// Recursively populate the tree store and file list
-void populate_tree(const char *folder_path, GtkTreeIter *parent) {
-    DIR *dir = opendir(folder_path);
-    if (!dir) return;
+// Incremental (idle) population
+static void free_dir_task(DirTask *t) {
+    if (!t) return;
+    g_free(t->path);
+    g_free(t);
+}
 
-    struct dirent *entry;
-    GList *folders = NULL; // List for folders
-    GList *files = NULL;   // List for files
+static gboolean populate_step(gpointer data) {
+    PopulateContext *ctx = (PopulateContext *)data;
+    if (!ctx || ctx->cancelled) return G_SOURCE_REMOVE;
 
-    // Pisahkan folder dan file
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+    // Process limited number of directories per idle iteration
+    int budget = 8; // tune to keep UI responsive
+    while (budget-- > 0 && !ctx->cancelled) {
+        DirTask *task = g_queue_pop_head(ctx->queue);
+        if (!task) {
+            ctx->source_id = 0;
+            return G_SOURCE_REMOVE; // done
+        }
 
-        char path[1024];
-        snprintf(path, sizeof(path), "%s/%s", folder_path, entry->d_name);
+        DIR *dir = opendir(task->path);
+        if (!dir) { free_dir_task(task); continue; }
 
-        struct stat st;
-        if (stat(path, &st) == 0) {
-            if (S_ISDIR(st.st_mode)) {
-                folders = g_list_insert_sorted(folders, g_strdup(entry->d_name), (GCompareFunc)g_ascii_strcasecmp);
-            } else {
-                files = g_list_insert_sorted(files, g_strdup(entry->d_name), (GCompareFunc)g_ascii_strcasecmp);
+        struct dirent *entry;
+        GList *folders = NULL;
+        GList *files = NULL;
+
+        while ((entry = readdir(dir)) != NULL) {
+            if (g_str_equal(entry->d_name, ".") || g_str_equal(entry->d_name, "..")) continue;
+            char full[1024];
+            snprintf(full, sizeof(full), "%s/%s", task->path, entry->d_name);
+
+            struct stat st;
+            if (stat(full, &st) == 0) {
+                if (S_ISDIR(st.st_mode)) folders = g_list_insert_sorted(folders, g_strdup(entry->d_name), (GCompareFunc)g_ascii_strcasecmp);
+                else files = g_list_insert_sorted(files, g_strdup(entry->d_name), (GCompareFunc)g_ascii_strcasecmp);
             }
         }
+        closedir(dir);
+
+        // Add folder nodes
+        for (GList *l = folders; l; l = l->next) {
+            const char *name = l->data;
+            char display[1024];
+            snprintf(display, sizeof(display), "%s/", name);
+            char full[1024];
+            snprintf(full, sizeof(full), "%s/%s", task->path, name);
+
+            GtkTreeIter iter;
+            gtk_tree_store_append(tree_store, &iter, task->has_parent ? &task->parent_iter : NULL);
+            // GTK copies string values internally; no need to g_strdup
+            gtk_tree_store_set(tree_store, &iter, 0, display, 1, full, -1);
+
+            // enqueue subdir
+            DirTask *sub = g_new0(DirTask, 1);
+            sub->path = g_strdup(full);
+            sub->parent_iter = iter;
+            sub->has_parent = TRUE;
+            g_queue_push_tail(ctx->queue, sub);
+        }
+
+        // Add files
+        for (GList *l = files; l; l = l->next) {
+            const char *name = l->data;
+            char full[1024];
+            snprintf(full, sizeof(full), "%s/%s", task->path, name);
+
+            GtkTreeIter iter;
+            gtk_tree_store_append(tree_store, &iter, task->has_parent ? &task->parent_iter : NULL);
+            gtk_tree_store_set(tree_store, &iter, 0, name, 1, full, -1);
+            file_list = g_list_append(file_list, g_strdup(full));
+        }
+
+        g_list_free_full(folders, g_free);
+        g_list_free_full(files, g_free);
+        free_dir_task(task);
     }
-    closedir(dir);
 
-    // Show folders first
-    for (GList *l = folders; l != NULL; l = l->next) {
-        const char *folder_name = (const char *)l->data;
-        char display_name[1024];
-        snprintf(display_name, sizeof(display_name), "%s/", folder_name); // Add "/"
+    return G_SOURCE_CONTINUE;
+}
 
-        char full_path[1024];
-        snprintf(full_path, sizeof(full_path), "%s/%s", folder_path, folder_name);
-
-        GtkTreeIter iter;
-        gtk_tree_store_append(tree_store, &iter, parent);
-        gtk_tree_store_set(tree_store, &iter, 0, display_name, 1, g_strdup(full_path), -1);
-
-        // Recursive folder contents
-        populate_tree(full_path, &iter);
+static void stop_population_if_running() {
+    if (!populate_ctx) return;
+    populate_ctx->cancelled = TRUE;
+    if (populate_ctx->source_id) {
+        g_source_remove(populate_ctx->source_id);
+        populate_ctx->source_id = 0;
     }
+    // drain remaining tasks
+    while (!g_queue_is_empty(populate_ctx->queue)) free_dir_task(g_queue_pop_head(populate_ctx->queue));
+    g_queue_free(populate_ctx->queue);
+    g_free(populate_ctx);
+    populate_ctx = NULL;
+}
 
-    // Show files after folder
-    for (GList *l = files; l != NULL; l = l->next) {
-        const char *file_name = (const char *)l->data;
+void populate_tree_async(const char *folder_path) {
+    stop_population_if_running();
 
-        char full_path[1024];
-        snprintf(full_path, sizeof(full_path), "%s/%s", folder_path, file_name);
+    gtk_tree_store_clear(tree_store);
+    g_list_free_full(file_list, g_free);
+    file_list = NULL;
 
-        GtkTreeIter iter;
-        gtk_tree_store_append(tree_store, &iter, parent);
-        gtk_tree_store_set(tree_store, &iter, 0, file_name, 1, g_strdup(full_path), -1);
-        file_list = g_list_append(file_list, g_strdup(full_path));
-    }
+    populate_ctx = g_new0(PopulateContext, 1);
+    populate_ctx->queue = g_queue_new();
+    populate_ctx->cancelled = FALSE;
 
-    // Clear list memory
-    g_list_free_full(folders, g_free);
-    g_list_free_full(files, g_free);
+    DirTask *root = g_new0(DirTask, 1);
+    root->path = g_strdup(folder_path);
+    root->has_parent = FALSE;
+    g_queue_push_tail(populate_ctx->queue, root);
+
+    populate_ctx->source_id = g_idle_add(populate_step, populate_ctx);
 }
 
 
@@ -291,7 +395,7 @@ void on_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColu
         if (filepath) {
             struct stat st;
             if (stat(filepath, &st) == 0 && S_ISREG(st.st_mode)) {
-                load_file(filepath);
+                load_file_async(filepath);
             }
             g_free(filepath);
         }
@@ -307,13 +411,9 @@ void open_folder(GtkWidget *widget, gpointer data) {
     if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
         char *folder_path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
 
-        strncpy(current_folder, folder_path, sizeof(current_folder)); // Save the currently opened folder
+        g_strlcpy(current_folder, folder_path, sizeof(current_folder)); // Save the currently opened folder
 
-
-        gtk_tree_store_clear(tree_store);
-        g_list_free_full(file_list, g_free); // Clear previous file list
-        file_list = NULL; // Reset file list
-        populate_tree(folder_path, NULL);
+        populate_tree_async(folder_path);
 
         g_free(folder_path);
     }
@@ -369,7 +469,7 @@ void activate_file_from_search() {
     if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
         char *filepath;
         gtk_tree_model_get(model, &iter, 0, &filepath, -1);
-        load_file(filepath);
+        load_file_async(filepath);
         g_free(filepath);
     }
     close_search_popup();
@@ -395,13 +495,8 @@ void reload_folder() {
         return;
     }
 
-    // Clear the current view
-    gtk_tree_store_clear(tree_store);
-    g_list_free_full(file_list, g_free);  // Clear previous file list
-    file_list = NULL;  // Reset file list
-
-    // Reload the folder by populating it again
-    populate_tree(current_folder, NULL);
+    // Restart async population
+    populate_tree_async(current_folder);
 }
 
 void close_folder() {
@@ -411,14 +506,22 @@ void close_folder() {
     }
 
     // Clear the current folder content in the sidebar
+    stop_population_if_running();
     gtk_tree_store_clear(tree_store);
     g_list_free_full(file_list, g_free); // Clear previous file list
     file_list = NULL; // Reset file list
     memset(current_folder, 0, sizeof(current_folder)); // Clear the current folder path
 
+    // Reset current file state
+    memset(current_file, 0, sizeof(current_file));
+    if (last_saved_content) {
+        free(last_saved_content);
+        last_saved_content = NULL;
+    }
+
     // Clear the editor content as well when folder is closed
     if (text_buffer != NULL) {
-        gtk_text_buffer_set_text(text_buffer, "", -1); // Clear text buffer
+        gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_buffer), "", -1); // Clear text buffer
     }
 
     set_status_message("Folder closed and editor cleared");
@@ -625,7 +728,7 @@ void activate(GtkApplication *app, gpointer user_data) {
     gtk_window_set_title(GTK_WINDOW(window), "Caecode");
     gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
 
-    g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), NULL);
     g_signal_connect(window, "key-press-event", G_CALLBACK(on_key_press), NULL);
 
     box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);  // Use GTK_ORIENTATION_VERTICAL to arrange vertically
@@ -667,10 +770,14 @@ void activate(GtkApplication *app, gpointer user_data) {
     gtk_container_add(GTK_CONTAINER(scrolled_window), text_view);
     gtk_box_pack_start(GTK_BOX(main_box), scrolled_window, TRUE, TRUE, 0);
 
-    // Adding fonts
-    PangoFontDescription *font_desc = pango_font_description_from_string("Monospace Bold 11");
-    gtk_widget_override_font(text_view, font_desc);
-    pango_font_description_free(font_desc);
+    // Apply font via CSS (avoid deprecated override)
+    GtkCssProvider *css = gtk_css_provider_new();
+    gtk_css_provider_load_from_data(css,
+        "textview, textview text { font-family: 'Monospace'; font-weight: bold; font-size: 11pt; }",
+        -1, NULL);
+    GtkStyleContext *ctx = gtk_widget_get_style_context(text_view);
+    gtk_style_context_add_provider(ctx, GTK_STYLE_PROVIDER(css), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(css);
 
     // Initialize the status bar below
     status_bar = gtk_statusbar_new();
@@ -707,4 +814,10 @@ int main(int argc, char **argv) {
     }
 
     return 0;
+}
+
+static void on_window_destroy(GtkWidget *w, gpointer user_data) {
+    // Ensure background tasks are stopped before quitting
+    stop_population_if_running();
+    gtk_main_quit();
 }
