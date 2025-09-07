@@ -32,8 +32,23 @@ builddeb: $(BIN_TARGET)
 	@rm -rf $(PKG_ROOT)
 	@mkdir -p $(PKG_ROOT)/DEBIAN
 	@mkdir -p $(PKG_ROOT)/usr/bin
+	@mkdir -p $(PKG_ROOT)/usr/share/applications
+	@mkdir -p $(PKG_ROOT)/usr/share/icons/hicolor/256x256/apps
 	@cp $(BIN_TARGET) $(PKG_ROOT)/usr/bin/caecode
 	@chmod 755 $(PKG_ROOT)/usr/bin/caecode
+	# Install desktop icon
+	@cp assets/logo/caecode.png $(PKG_ROOT)/usr/share/icons/hicolor/256x256/apps/caecode.png
+	@chmod 644 $(PKG_ROOT)/usr/share/icons/hicolor/256x256/apps/caecode.png
+	# Create desktop entry
+	@printf "[Desktop Entry]\n" > $(PKG_ROOT)/usr/share/applications/caecode.desktop
+	@printf "Name=Caecode\n" >> $(PKG_ROOT)/usr/share/applications/caecode.desktop
+	@printf "Comment=Lightweight code editor using GTK and GtkSourceView\n" >> $(PKG_ROOT)/usr/share/applications/caecode.desktop
+	@printf "Exec=caecode\n" >> $(PKG_ROOT)/usr/share/applications/caecode.desktop
+	@printf "Icon=caecode\n" >> $(PKG_ROOT)/usr/share/applications/caecode.desktop
+	@printf "Terminal=false\n" >> $(PKG_ROOT)/usr/share/applications/caecode.desktop
+	@printf "Type=Application\n" >> $(PKG_ROOT)/usr/share/applications/caecode.desktop
+	@printf "Categories=Development;IDE;Utility;\n" >> $(PKG_ROOT)/usr/share/applications/caecode.desktop
+	@chmod 644 $(PKG_ROOT)/usr/share/applications/caecode.desktop
 	@printf "Package: caecode\nVersion: $(VERSION)\nSection: editors\nPriority: optional\nArchitecture: $(ARCH)\nMaintainer: Unknown <unknown@example.com>\nDepends: libgtk-3-0, libgtksourceview-3.0-1\nDescription: Caecode - lightweight code editor using GTK and GtkSourceView\n" > $(PKG_ROOT)/DEBIAN/control
 	@mkdir -p $(BUILD_DIR)
 	dpkg-deb --build $(PKG_ROOT) $(DEB_FILE)
