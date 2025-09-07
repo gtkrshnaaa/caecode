@@ -136,7 +136,10 @@ static void on_file_loaded(GObject *src, GAsyncResult *res, gpointer user_data) 
 
     // Apply to UI (main thread)
     g_strlcpy(current_file, ctx->path, sizeof(current_file));
+    // Prevent this programmatic load from being added to the undo history
+    gtk_source_buffer_begin_not_undoable_action(text_buffer);
     gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_buffer), contents, (gint)len);
+    gtk_source_buffer_end_not_undoable_action(text_buffer);
 
     if (last_saved_content) free(last_saved_content);
     last_saved_content = g_strdup(contents);
@@ -521,7 +524,10 @@ void close_folder() {
 
     // Clear the editor content as well when folder is closed
     if (text_buffer != NULL) {
+        // Do not push this clear operation into undo stack
+        gtk_source_buffer_begin_not_undoable_action(text_buffer);
         gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_buffer), "", -1); // Clear text buffer
+        gtk_source_buffer_end_not_undoable_action(text_buffer);
     }
 
     set_status_message("Folder closed and editor cleared");
