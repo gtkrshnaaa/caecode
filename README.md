@@ -4,15 +4,6 @@
 
 ---
 
-
-## Download
-
-You can download the latest version of Caecode here:
-
-[Download Caecode v0.0.2 (.deb)](https://github.com/gtkrshnaaa/caecode/releases/download/v0.0.2/caecode_0.0.2.deb)
-
----
-
 # Caecode Screenshots
 
 Here are some screenshots from the Caecode app.
@@ -47,23 +38,55 @@ sudo apt install libgtk-3-dev libgtksourceview-3.0-dev
 
 ### 2. **Compilation**
 
-Clone or download the source code, then run the following commands in the terminal:  
+Clone or download the source code, then build the binary (output to `bin/caecode`):  
 
 ```bash
 make
 ```
 
-To run Caecode after compilation:  
+Run Caecode after compilation:  
 
 ```bash
 make run
 ```
 
-To clean up compiled files:  
+Clean build artifacts:  
 
 ```bash
 make clean
 ```
+
+### 3. **Packaging (.deb)**
+
+You can build a `.deb` package complete with a desktop launcher and icon:
+
+```bash
+make builddeb
+```
+
+The default package version is `0.0.4`. You can override the version at build time:
+
+```bash
+make builddeb VERSION=1.0.0
+```
+
+Install the generated `.deb` package (it will automatically build if not present):
+
+```bash
+sudo make install
+```
+
+Uninstall the package:
+
+```bash
+sudo make uninstall
+```
+
+Notes:
+- The `.deb` installs the binary to `/usr/bin/caecode`.
+- The desktop file is installed to `/usr/share/applications/caecode.desktop`.
+- The icon is installed to `/usr/share/icons/hicolor/256x256/apps/caecode.png`.
+- The launcher will appear in your applications menu as "Caecode".
 
 ---
 
@@ -148,7 +171,7 @@ caecode/
 Caecode is still in early development. You can contribute by:  
 - Reporting bugs  
 - Suggesting new features  
-- Submitting pull requests  
+- Submitting pull requests (soon)  
 
 ---
 
