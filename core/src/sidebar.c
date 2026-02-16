@@ -36,9 +36,9 @@ static void stop_population_if_running() {
     }
 }
 
-static void add_to_tree(const char *path, const char *name, GtkTreeIter *parent, GtkTreeIter *iter) {
+static void add_to_tree(const char *path, const char *name, const char *icon_name, GtkTreeIter *parent, GtkTreeIter *iter) {
     gtk_tree_store_append(tree_store, iter, parent);
-    gtk_tree_store_set(tree_store, iter, 0, name, 1, path, -1);
+    gtk_tree_store_set(tree_store, iter, 0, icon_name, 1, name, 2, path, -1);
 }
 
 static gboolean populate_step(gpointer data) {
@@ -84,7 +84,7 @@ static gboolean populate_step(gpointer data) {
             snprintf(full_path, sizeof(full_path), "%s/%s", task->path, name);
             
             GtkTreeIter iter;
-            add_to_tree(full_path, name, task->has_parent ? &task->parent_iter : NULL, &iter);
+            add_to_tree(full_path, name, "folder-symbolic", task->has_parent ? &task->parent_iter : NULL, &iter);
 
             DirTask *subtask = g_new0(DirTask, 1);
             subtask->path = g_strdup(full_path);
@@ -102,7 +102,7 @@ static gboolean populate_step(gpointer data) {
             snprintf(full_path, sizeof(full_path), "%s/%s", task->path, name);
             
             GtkTreeIter iter;
-            add_to_tree(full_path, name, task->has_parent ? &task->parent_iter : NULL, &iter);
+            add_to_tree(full_path, name, "text-x-generic-symbolic", task->has_parent ? &task->parent_iter : NULL, &iter);
             
             file_list = g_list_append(file_list, g_strdup(full_path));
         }
@@ -167,7 +167,7 @@ static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColu
     GtkTreeModel *model = gtk_tree_view_get_model(tv);
     if (gtk_tree_model_get_iter(model, &iter, path)) {
         char *filepath;
-        gtk_tree_model_get(model, &iter, 1, &filepath, -1);
+        gtk_tree_model_get(model, &iter, 2, &filepath, -1);
         
         struct stat st;
         if (stat(filepath, &st) == 0 && S_ISREG(st.st_mode)) {
@@ -178,11 +178,20 @@ static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColu
 }
 
 void init_sidebar() {
-    tree_store = gtk_tree_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
+    tree_store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
     tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(tree_store));
     
-    GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
-    GtkTreeViewColumn *column = gtk_tree_view_column_new_with_attributes("Files", renderer, "text", 0, NULL);
+    GtkTreeViewColumn *column = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(column, "Files");
+
+    GtkCellRenderer *icon_renderer = gtk_cell_renderer_pixbuf_new();
+    gtk_tree_view_column_pack_start(column, icon_renderer, FALSE);
+    gtk_tree_view_column_add_attribute(column, icon_renderer, "icon-name", 0);
+
+    GtkCellRenderer *text_renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_column_pack_start(column, text_renderer, TRUE);
+    gtk_tree_view_column_add_attribute(column, text_renderer, "text", 1);
+
     gtk_tree_view_append_column(GTK_TREE_VIEW(tree_view), column);
 
     g_signal_connect(tree_view, "row-activated", G_CALLBACK(on_row_activated), NULL);
@@ -191,7 +200,7 @@ void init_sidebar() {
 void select_file_in_sidebar_recursive(GtkTreeModel *model, GtkTreeIter *iter, const char *filepath) {
     do {
         char *path;
-        gtk_tree_model_get(model, iter, 1, &path, -1);
+        gtk_tree_model_get(model, iter, 2, &path, -1);
         if (path && strcmp(path, filepath) == 0) {
             GtkTreePath *tree_path = gtk_tree_model_get_path(model, iter);
             gtk_tree_view_expand_to_path(GTK_TREE_VIEW(tree_view), tree_path);
@@ -217,7 +226,7 @@ void select_file_in_sidebar(const char *filepath) {
     if (gtk_tree_model_get_iter_first(model, &iter)) {
         do {
             char *path;
-            gtk_tree_model_get(model, &iter, 1, &path, -1);
+            gtk_tree_model_get(model, &iter, 2, &path, -1);
             if (path && strcmp(path, filepath) == 0) {
                 GtkTreePath *tree_path = gtk_tree_model_get_path(model, &iter);
                 gtk_tree_view_expand_to_path(GTK_TREE_VIEW(tree_view), tree_path);
@@ -247,7 +256,7 @@ void mark_unsaved_file(const char *filepath, gboolean unsaved) {
             char *filename = g_path_get_basename(filepath);
             char display_name[1024];
             snprintf(display_name, sizeof(display_name), "%s%s", filename, unsaved ? " *" : "");
-            gtk_tree_store_set(tree_store, &iter, 0, display_name, -1);
+            gtk_tree_store_set(tree_store, &iter, 1, display_name, -1);
             g_free(filename);
         }
         gtk_tree_path_free(path);
