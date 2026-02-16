@@ -697,8 +697,7 @@ void switch_theme() {
     }
 
     static const char *themes[] = {
-        "caecode-dark", "caecode-light", "Yaru-dark", "Yaru", "classic", "cobalt", "kate", "oblivion", "solarized-dark",
-        "solarized-light", "tango"
+        "caecode-dark", "caecode-light"
     };
     static int current_theme = 0;
 
