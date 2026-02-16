@@ -399,18 +399,13 @@ static GtkWidget* create_bottom_panel() {
     gtk_style_context_add_class(gtk_widget_get_style_context(title), "terminal-header-item");
     gtk_style_context_add_class(gtk_widget_get_style_context(title), "active");
     gtk_box_pack_start(GTK_BOX(header), title, FALSE, FALSE, 0);
+    gtk_widget_set_margin_start(title, 10);
     
-    // Action buttons on the right side of header
     GtkWidget *header_actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     GtkWidget *btn_new = gtk_button_new_from_icon_name("list-add-symbolic", GTK_ICON_SIZE_MENU);
     gtk_button_set_relief(GTK_BUTTON(btn_new), GTK_RELIEF_NONE);
     g_signal_connect(btn_new, "clicked", G_CALLBACK(create_new_terminal), NULL);
     gtk_box_pack_start(GTK_BOX(header_actions), btn_new, FALSE, FALSE, 0);
-    
-    GtkWidget *btn_close_panel = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
-    gtk_button_set_relief(GTK_BUTTON(btn_close_panel), GTK_RELIEF_NONE);
-    g_signal_connect_swapped(btn_close_panel, "clicked", G_CALLBACK(gtk_widget_hide), bottom_panel);
-    gtk_box_pack_start(GTK_BOX(header_actions), btn_close_panel, FALSE, FALSE, 0);
     
     gtk_box_pack_end(GTK_BOX(header), header_actions, FALSE, FALSE, 10);
     gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, FALSE, 0);
@@ -419,6 +414,7 @@ static GtkWidget* create_bottom_panel() {
     GtkWidget *h_paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
     
     terminal_stack = gtk_stack_new();
+    gtk_widget_set_margin_start(terminal_stack, 10);
     gtk_stack_set_transition_type(GTK_STACK(terminal_stack), GTK_STACK_TRANSITION_TYPE_NONE);
     gtk_paned_pack1(GTK_PANED(h_paned), terminal_stack, TRUE, FALSE);
     
