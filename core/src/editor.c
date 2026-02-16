@@ -56,7 +56,7 @@ void switch_theme() {
         const char *line_num_bg = (current_theme == 0) ? "#1e1e1e" : "#FFFFFF";
         
         char *css_data = g_strdup_printf(
-            "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar, #welcome-screen { background-color: %s; color: %s; }"
+            "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar, #welcome-screen, #bottom-panel, #chat-panel { background-color: %s; color: %s; }"
             "treeview { padding-bottom: 100px; }"
             "treeview:selected { background-color: %s; }"
             "statusbar { border-top: 1px solid %s; }"

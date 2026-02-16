@@ -19,6 +19,8 @@ GList *file_list = NULL;
 GtkCssProvider *app_css_provider = NULL;
 GtkWidget *editor_stack;
 GtkWidget *welcome_screen;
+GtkWidget *bottom_panel;
+GtkWidget *chat_panel;
 
 char current_file[1024] = "";
 char current_folder[1024] = "";
@@ -135,6 +137,9 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer use
             case GDK_KEY_r: reload_sidebar(); return TRUE;
             case GDK_KEY_q: close_folder(); return TRUE;
             
+            case GDK_KEY_t: gtk_widget_set_visible(bottom_panel, !gtk_widget_get_visible(bottom_panel)); return TRUE;
+            case GDK_KEY_g: gtk_widget_set_visible(chat_panel, !gtk_widget_get_visible(chat_panel)); return TRUE;
+            
             case GDK_KEY_i: move_cursor_up(); return TRUE;
             case GDK_KEY_k: move_cursor_down(); return TRUE;
             case GDK_KEY_j: move_cursor_left(); return TRUE;
@@ -217,6 +222,30 @@ static GtkWidget* create_welcome_screen() {
     return box;
 }
 
+static GtkWidget* create_bottom_panel() {
+    GtkWidget *panel = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_name(panel, "bottom-panel");
+    gtk_widget_set_size_request(panel, -1, 150);
+    
+    GtkWidget *label = gtk_label_new("Terminal & Panel Area");
+    gtk_style_context_add_class(gtk_widget_get_style_context(label), "dim-label");
+    gtk_box_pack_start(GTK_BOX(panel), label, TRUE, TRUE, 0);
+    
+    return panel;
+}
+
+static GtkWidget* create_chat_panel() {
+    GtkWidget *panel = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_name(panel, "chat-panel");
+    gtk_widget_set_size_request(panel, 300, -1);
+    
+    GtkWidget *label = gtk_label_new("Antigravity Chat");
+    gtk_style_context_add_class(gtk_widget_get_style_context(label), "dim-label");
+    gtk_box_pack_start(GTK_BOX(panel), label, TRUE, TRUE, 0);
+    
+    return panel;
+}
+
 void create_main_window() {
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window), "Caecode");
@@ -225,41 +254,37 @@ void create_main_window() {
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add(GTK_CONTAINER(window), vbox);
 
-    GtkWidget *paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
-    gtk_box_pack_start(GTK_BOX(vbox), paned, TRUE, TRUE, 0);
+    GtkWidget *main_h_paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
+    GtkWidget *inner_h_paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
+    GtkWidget *nested_v_paned = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
 
-    // Sidebar
+    gtk_box_pack_start(GTK_BOX(vbox), main_h_paned, TRUE, TRUE, 0);
+
+    // Sidebar - Pack into inner_h_paned Slot 1
     init_sidebar();
     sidebar_scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sidebar_scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_widget_set_name(sidebar_scrolled_window, "sidebar-scrolledwindow");
-
     gtk_container_add(GTK_CONTAINER(sidebar_scrolled_window), tree_view);
-    gtk_paned_pack1(GTK_PANED(paned), sidebar_scrolled_window, FALSE, FALSE);
-
-    // Editor
-    init_editor();
     
-    // Apply margins for better spacing
+    gtk_paned_pack1(GTK_PANED(inner_h_paned), sidebar_scrolled_window, FALSE, FALSE);
+
+    // Editor Area Stack
+    init_editor();
     gtk_text_view_set_top_margin(GTK_TEXT_VIEW(source_view), 20);
     gtk_text_view_set_bottom_margin(GTK_TEXT_VIEW(source_view), 20);
     gtk_text_view_set_left_margin(GTK_TEXT_VIEW(source_view), 15);
     gtk_text_view_set_right_margin(GTK_TEXT_VIEW(source_view), 15);
 
-    // Apply cleaner font via CSS
     GtkCssProvider *css = gtk_css_provider_new();
-    gtk_css_provider_load_from_data(css,
-        "textview, textview text { font-family: 'Monospace'; font-size: 11pt; }",
-        -1, NULL);
-    GtkStyleContext *ctx = gtk_widget_get_style_context(GTK_WIDGET(source_view));
-    gtk_style_context_add_provider(ctx, GTK_STYLE_PROVIDER(css), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    gtk_css_provider_load_from_data(css, "textview, textview text { font-family: 'Monospace'; font-size: 11pt; }", -1, NULL);
+    gtk_style_context_add_provider(gtk_widget_get_style_context(GTK_WIDGET(source_view)), GTK_STYLE_PROVIDER(css), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     g_object_unref(css);
 
     GtkWidget *editor_scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(editor_scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(editor_scrolled_window), GTK_WIDGET(source_view));
 
-    // Stack to toggle between Welcome and Editor
     editor_stack = gtk_stack_new();
     gtk_stack_set_transition_type(GTK_STACK(editor_stack), GTK_STACK_TRANSITION_TYPE_CROSSFADE);
     gtk_stack_set_transition_duration(GTK_STACK(editor_stack), 300);
@@ -268,17 +293,28 @@ void create_main_window() {
     gtk_widget_set_name(welcome_screen, "welcome-screen");
     gtk_stack_add_named(GTK_STACK(editor_stack), welcome_screen, "welcome");
     gtk_stack_add_named(GTK_STACK(editor_stack), editor_scrolled_window, "editor");
+
+    // Nesting logic
+    gtk_paned_pack1(GTK_PANED(nested_v_paned), editor_stack, TRUE, FALSE);
     
-    gtk_paned_pack2(GTK_PANED(paned), editor_stack, TRUE, FALSE);
+    bottom_panel = create_bottom_panel();
+    gtk_paned_pack2(GTK_PANED(nested_v_paned), bottom_panel, FALSE, FALSE);
+    
+    gtk_paned_pack2(GTK_PANED(inner_h_paned), nested_v_paned, TRUE, FALSE);
+    
+    gtk_paned_pack1(GTK_PANED(main_h_paned), inner_h_paned, TRUE, FALSE);
+    
+    chat_panel = create_chat_panel();
+    gtk_paned_pack2(GTK_PANED(main_h_paned), chat_panel, FALSE, FALSE);
 
-    if (strlen(current_folder) == 0) {
-        show_welcome_screen();
-    } else {
-        show_editor_view();
-    }
+    // Defaults
+    gtk_paned_set_position(GTK_PANED(inner_h_paned), 250);
+    gtk_paned_set_position(GTK_PANED(nested_v_paned), 450);
+    gtk_paned_set_position(GTK_PANED(main_h_paned), 750);
 
-    // Set initial sidebar width (divider position)
-    gtk_paned_set_position(GTK_PANED(paned), 250);
+    if (strlen(current_folder) == 0) show_welcome_screen(); 
+    else show_editor_view();
+
 
     // Status bar
     status_bar = gtk_statusbar_new();

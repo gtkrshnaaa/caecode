@@ -21,6 +21,8 @@ extern GList *file_list;
 extern GtkCssProvider *app_css_provider;
 extern GtkWidget *editor_stack;
 extern GtkWidget *welcome_screen;
+extern GtkWidget *bottom_panel;
+extern GtkWidget *chat_panel;
 
 // Global State
 extern char current_file[1024];
