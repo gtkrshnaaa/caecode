@@ -16,6 +16,7 @@ GtkWidget *tree_view;
 GtkSourceStyleSchemeManager *theme_manager;
 GtkTreeRowReference *current_file_row_ref = NULL;
 GList *file_list = NULL;
+GtkCssProvider *app_css_provider = NULL;
 
 char current_file[1024] = "";
 char current_folder[1024] = "";
@@ -205,6 +206,11 @@ void create_main_window() {
     set_status_message("Welcome to Caecode");
 
     init_search_popup();
+
+    // Initialize Global CSS Provider
+    app_css_provider = gtk_css_provider_new();
+    GtkStyleContext *screen_ctx = gtk_widget_get_style_context(window);
+    gtk_style_context_add_provider(screen_ctx, GTK_STYLE_PROVIDER(app_css_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     g_signal_connect(window, "key-press-event", G_CALLBACK(on_key_press), NULL);

@@ -18,6 +18,7 @@ extern GtkWidget *tree_view;
 extern GtkSourceStyleSchemeManager *theme_manager;
 extern GtkTreeRowReference *current_file_row_ref;
 extern GList *file_list;
+extern GtkCssProvider *app_css_provider;
 
 // Global State
 extern char current_file[1024];
