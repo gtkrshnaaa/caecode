@@ -326,7 +326,7 @@ void init_sidebar() {
 
     // Initial background git poll
     if (git_poll_timeout_id == 0) {
-        git_poll_timeout_id = g_timeout_add_seconds(5, background_git_poll, NULL);
+        git_poll_timeout_id = g_timeout_add_seconds(2, background_git_poll, NULL);
     }
 }
 
