@@ -164,14 +164,8 @@ void create_main_window() {
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sidebar_scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(sidebar_scrolled_window), tree_view);
 
-    // Apply bottom padding to tree_view via CSS for a scrolling gap
-    GtkCssProvider *sidebar_css = gtk_css_provider_new();
-    gtk_css_provider_load_from_data(sidebar_css,
-        "treeview { padding-bottom: 100px; }",
-        -1, NULL);
-    GtkStyleContext *sidebar_ctx = gtk_widget_get_style_context(tree_view);
-    gtk_style_context_add_provider(sidebar_ctx, GTK_STYLE_PROVIDER(sidebar_css), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    g_object_unref(sidebar_css);
+    // Apply bottom margin to tree_view for a scrolling gap (compact list)
+    gtk_widget_set_margin_bottom(tree_view, 100);
 
     gtk_paned_pack1(GTK_PANED(paned), sidebar_scrolled_window, FALSE, FALSE);
 
