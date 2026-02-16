@@ -23,8 +23,6 @@ extern GtkCssProvider *app_css_provider;
 extern GtkWidget *editor_stack;
 extern GtkWidget *welcome_screen;
 extern GtkWidget *bottom_panel;
-extern GtkWidget *bottom_content_stack;
-extern GtkWidget *git_status_list;
 extern GtkWidget *chat_panel;
 extern GtkWidget *terminal_stack;
 extern GtkWidget *terminal_list;
@@ -62,8 +60,5 @@ void show_editor_view();
 void save_recent_folder(const char *path);
 GList* get_recent_folders();
 void create_new_terminal();
-void refresh_git_status();
-void show_git_view();
-void show_terminal_view();
 
 #endif // APP_STATE_H

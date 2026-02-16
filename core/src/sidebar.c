@@ -140,7 +140,6 @@ void open_folder(const char *path) {
 
     save_recent_folder(path);
     show_editor_view(); // Will show empty state as current_file is empty
-    refresh_git_status();
 }
 
 void close_folder() {
