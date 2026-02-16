@@ -53,29 +53,62 @@ static gboolean populate_step(gpointer data) {
     DIR *dir = opendir(task->path);
     if (dir) {
         struct dirent *entry;
+        GList *subdirs = NULL;
+        GList *files = NULL;
+
         while ((entry = readdir(dir))) {
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
             if (entry->d_name[0] == '.') continue;
 
+            char *name = g_strdup(entry->d_name);
             char full_path[1024];
-            snprintf(full_path, sizeof(full_path), "%s/%s", task->path, entry->d_name);
+            snprintf(full_path, sizeof(full_path), "%s/%s", task->path, name);
 
             struct stat st;
             if (stat(full_path, &st) == 0) {
-                GtkTreeIter iter;
-                add_to_tree(full_path, entry->d_name, task->has_parent ? &task->parent_iter : NULL, &iter);
-
                 if (S_ISDIR(st.st_mode)) {
-                    DirTask *subtask = g_new0(DirTask, 1);
-                    subtask->path = g_strdup(full_path);
-                    subtask->parent_iter = iter;
-                    subtask->has_parent = TRUE;
-                    g_queue_push_tail(populate_ctx->queue, subtask);
+                    subdirs = g_list_insert_sorted(subdirs, name, (GCompareFunc)g_ascii_strcasecmp);
+                } else {
+                    files = g_list_insert_sorted(files, name, (GCompareFunc)g_ascii_strcasecmp);
                 }
+            } else {
+                g_free(name);
             }
-            file_list = g_list_append(file_list, g_strdup(full_path));
         }
         closedir(dir);
+
+        // Add subdirectories first (folders at top)
+        for (GList *l = subdirs; l != NULL; l = l->next) {
+            char *name = (char *)l->data;
+            char full_path[1024];
+            snprintf(full_path, sizeof(full_path), "%s/%s", task->path, name);
+            
+            GtkTreeIter iter;
+            add_to_tree(full_path, name, task->has_parent ? &task->parent_iter : NULL, &iter);
+
+            DirTask *subtask = g_new0(DirTask, 1);
+            subtask->path = g_strdup(full_path);
+            subtask->parent_iter = iter;
+            subtask->has_parent = TRUE;
+            g_queue_push_tail(populate_ctx->queue, subtask);
+            
+            file_list = g_list_append(file_list, g_strdup(full_path));
+        }
+
+        // Add files after subdirectories
+        for (GList *l = files; l != NULL; l = l->next) {
+            char *name = (char *)l->data;
+            char full_path[1024];
+            snprintf(full_path, sizeof(full_path), "%s/%s", task->path, name);
+            
+            GtkTreeIter iter;
+            add_to_tree(full_path, name, task->has_parent ? &task->parent_iter : NULL, &iter);
+            
+            file_list = g_list_append(file_list, g_strdup(full_path));
+        }
+
+        g_list_free_full(subdirs, g_free);
+        g_list_free_full(files, g_free);
     }
 
     g_free(task->path);
