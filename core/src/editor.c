@@ -1,6 +1,78 @@
 #include "editor.h"
 #include <string.h>
 
+static int current_theme_idx = 0;
+static const char *themes[] = { "caecode-dark", "caecode-light" };
+
+void apply_theme(int index) {
+    current_theme_idx = index;
+    GtkSourceStyleScheme *scheme = gtk_source_style_scheme_manager_get_scheme(theme_manager, themes[current_theme_idx]);
+    
+    if (scheme) {
+        gtk_source_buffer_set_style_scheme(text_buffer, scheme);
+        
+        // Unify UI colors based on the selected theme (GNOME Adwaita palette)
+        const char *bg_color = (current_theme_idx == 0) ? "#1e1e1e" : "#FFFFFF";
+        const char *fg_color = (current_theme_idx == 0) ? "#E0E0E0" : "#333333";
+        
+        char *css_data = g_strdup_printf(
+            "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar, #welcome-screen, #bottom-panel, #chat-panel { background-color: %s; color: %s; }"
+            "treeview { padding-bottom: 100px; }"
+            "treeview:selected { background-color: %s; }"
+            "statusbar { border-top: 1px solid %s; }"
+            ".dim-label { opacity: 0.6; }",
+            bg_color, fg_color,
+            (current_theme_idx == 0) ? "#333333" : "#EEEEEE", // selection color
+            (current_theme_idx == 0) ? "#222222" : "#DDDDDD"  // statusbar border
+        );
+        
+        gtk_css_provider_load_from_data(app_css_provider, css_data, -1, NULL);
+        g_free(css_data);
+
+        // Update Terminal colors
+        GdkRGBA bg_rgba, fg_rgba;
+        gdk_rgba_parse(&bg_rgba, bg_color);
+        gdk_rgba_parse(&fg_rgba, fg_color);
+
+        GList *children = gtk_container_get_children(GTK_CONTAINER(terminal_stack));
+        for (GList *l = children; l != NULL; l = l->next) {
+            GtkWidget *page = (GtkWidget *)l->data;
+            if (GTK_IS_SCROLLED_WINDOW(page)) {
+                GtkWidget *terminal = gtk_bin_get_child(GTK_BIN(page));
+                if (VTE_IS_TERMINAL(terminal)) {
+                    vte_terminal_set_colors(VTE_TERMINAL(terminal), &fg_rgba, &bg_rgba, NULL, 0);
+                }
+            }
+        }
+        g_list_free(children);
+
+        // Additional terminal-specific CSS
+        char *term_css = g_strdup_printf(
+            ".terminal-toolbar { background-color: %s; border-bottom: 1px solid %s; }"
+            ".terminal-header-item { padding: 5px 10px; color: %s; opacity: 0.7; }"
+            ".terminal-header-item.active { opacity: 1.0; border-bottom: 2px solid #3584e4; }"
+            ".terminal-session-list { background-color: %s; border-left: 1px solid %s; }",
+            (current_theme_idx == 0) ? "#252525" : "#F3F3F3",
+            (current_theme_idx == 0) ? "#333333" : "#DDDDDD",
+            fg_color,
+            (current_theme_idx == 0) ? "#1e1e1e" : "#FFFFFF",
+            (current_theme_idx == 0) ? "#333333" : "#DDDDDD"
+        );
+        GtkStyleContext *ts_ctx = gtk_widget_get_style_context(terminal_stack);
+        GtkCssProvider *ts_provider = gtk_css_provider_new();
+        gtk_css_provider_load_from_data(ts_provider, term_css, -1, NULL);
+        gtk_style_context_add_provider(ts_ctx, GTK_STYLE_PROVIDER(ts_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+        g_object_unref(ts_provider);
+        g_free(term_css);
+
+        set_status_message(g_strdup_printf("Theme: %s", themes[current_theme_idx]));
+    }
+}
+
+void switch_theme() {
+    apply_theme((current_theme_idx + 1) % 2);
+}
+
 void init_editor() {
     text_buffer = gtk_source_buffer_new(NULL);
     source_view = GTK_SOURCE_VIEW(gtk_source_view_new_with_buffer(text_buffer));
@@ -26,88 +98,28 @@ void init_editor() {
     // Add system-wide themes path (installed)
     gtk_source_style_scheme_manager_append_search_path(theme_manager, "/usr/share/caecode/themes");
 
-    GtkSourceStyleScheme *default_scheme = gtk_source_style_scheme_manager_get_scheme(theme_manager, "caecode-dark");
-    if (!default_scheme) {
-        default_scheme = gtk_source_style_scheme_manager_get_scheme(theme_manager, "Yaru-dark");
-    }
+    // Detect system theme preference
+    gboolean prefer_dark = FALSE;
+    GtkSettings *settings = gtk_settings_get_default();
+    g_object_get(settings, "gtk-application-prefer-dark-theme", &prefer_dark, NULL);
     
-    if (default_scheme) {
-        gtk_source_buffer_set_style_scheme(text_buffer, default_scheme);
+    // Check theme name as fallback for some environments
+    if (!prefer_dark) {
+        char *theme_name;
+        g_object_get(settings, "gtk-theme-name", &theme_name, NULL);
+        if (theme_name) {
+            char *lower_theme = g_ascii_strdown(theme_name, -1);
+            if (strstr(lower_theme, "dark")) {
+                prefer_dark = TRUE;
+            }
+            g_free(lower_theme);
+            g_free(theme_name);
+        }
     }
+
+    apply_theme(prefer_dark ? 0 : 1);
 
     g_signal_connect(text_buffer, "changed", G_CALLBACK(on_text_changed), NULL);
-}
-
-void switch_theme() {
-    static const char *themes[] = {
-        "caecode-dark", "caecode-light"
-    };
-    static int current_theme = 0;
-
-    current_theme = (current_theme + 1) % (sizeof(themes) / sizeof(themes[0]));
-    GtkSourceStyleScheme *scheme = gtk_source_style_scheme_manager_get_scheme(theme_manager, themes[current_theme]);
-    
-    if (scheme) {
-        gtk_source_buffer_set_style_scheme(text_buffer, scheme);
-        
-        // Unify UI colors based on the selected theme (GNOME Adwaita palette)
-        const char *bg_color = (current_theme == 0) ? "#1e1e1e" : "#FFFFFF";
-        const char *fg_color = (current_theme == 0) ? "#E0E0E0" : "#333333";
-        const char *line_num_bg = (current_theme == 0) ? "#1e1e1e" : "#FFFFFF";
-        
-        char *css_data = g_strdup_printf(
-            "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar, #welcome-screen, #bottom-panel, #chat-panel { background-color: %s; color: %s; }"
-            "treeview { padding-bottom: 100px; }"
-            "treeview:selected { background-color: %s; }"
-            "statusbar { border-top: 1px solid %s; }"
-            ".dim-label { opacity: 0.6; }",
-            bg_color, fg_color,
-            (current_theme == 0) ? "#333333" : "#EEEEEE", // selection color
-            (current_theme == 0) ? "#222222" : "#DDDDDD"  // statusbar border
-        );
-        
-        gtk_css_provider_load_from_data(app_css_provider, css_data, -1, NULL);
-        g_free(css_data);
-
-        // Update Terminal colors
-        GdkRGBA bg_rgba, fg_rgba;
-        gdk_rgba_parse(&bg_rgba, bg_color);
-        gdk_rgba_parse(&fg_rgba, fg_color);
-
-        int n_pages = 0;
-        GList *children = gtk_container_get_children(GTK_CONTAINER(terminal_stack));
-        for (GList *l = children; l != NULL; l = l->next) {
-            GtkWidget *page = (GtkWidget *)l->data;
-            if (GTK_IS_SCROLLED_WINDOW(page)) {
-                GtkWidget *terminal = gtk_bin_get_child(GTK_BIN(page));
-                if (VTE_IS_TERMINAL(terminal)) {
-                    vte_terminal_set_colors(VTE_TERMINAL(terminal), &fg_rgba, &bg_rgba, NULL, 0);
-                }
-            }
-        }
-        g_list_free(children);
-
-        // Additional terminal-specific CSS
-        char *term_css = g_strdup_printf(
-            ".terminal-toolbar { background-color: %s; border-bottom: 1px solid %s; }"
-            ".terminal-header-item { padding: 5px 10px; color: %s; opacity: 0.7; }"
-            ".terminal-header-item.active { opacity: 1.0; border-bottom: 2px solid #3584e4; }"
-            ".terminal-session-list { background-color: %s; border-left: 1px solid %s; }",
-            (current_theme == 0) ? "#252525" : "#F3F3F3",
-            (current_theme == 0) ? "#333333" : "#DDDDDD",
-            fg_color,
-            (current_theme == 0) ? "#1e1e1e" : "#FFFFFF",
-            (current_theme == 0) ? "#333333" : "#DDDDDD"
-        );
-        GtkStyleContext *ts_ctx = gtk_widget_get_style_context(terminal_stack);
-        GtkCssProvider *ts_provider = gtk_css_provider_new();
-        gtk_css_provider_load_from_data(ts_provider, term_css, -1, NULL);
-        gtk_style_context_add_provider(ts_ctx, GTK_STYLE_PROVIDER(ts_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-        g_object_unref(ts_provider);
-        g_free(term_css);
-
-        set_status_message(g_strdup_printf("Theme switched to: %s", themes[current_theme]));
-    }
 }
 
 void on_text_changed(GtkTextBuffer *buffer, gpointer user_data) {
