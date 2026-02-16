@@ -697,7 +697,7 @@ void switch_theme() {
     }
 
     static const char *themes[] = {
-        "Yaru-dark", "Yaru", "classic", "cobalt", "kate", "oblivion", "solarized-dark",
+        "caecode", "Yaru-dark", "Yaru", "classic", "cobalt", "kate", "oblivion", "solarized-dark",
         "solarized-light", "tango"
     };
     static int current_theme = 0;
@@ -791,7 +791,19 @@ void activate(GtkApplication *app, gpointer user_data) {
     init_search_popup();
 
     theme_manager = gtk_source_style_scheme_manager_get_default();
-    GtkSourceStyleScheme *default_scheme = gtk_source_style_scheme_manager_get_scheme(theme_manager, "Yaru-dark");
+    
+    // Add local themes path
+    char *cwd = g_get_current_dir();
+    char *theme_path = g_build_filename(cwd, "assets", "themes", NULL);
+    gtk_source_style_scheme_manager_append_search_path(theme_manager, theme_path);
+    g_free(theme_path);
+    g_free(cwd);
+
+    GtkSourceStyleScheme *default_scheme = gtk_source_style_scheme_manager_get_scheme(theme_manager, "caecode");
+    if (!default_scheme) {
+        default_scheme = gtk_source_style_scheme_manager_get_scheme(theme_manager, "Yaru-dark");
+    }
+    
     if (default_scheme) {
         gtk_source_buffer_set_style_scheme(text_buffer, default_scheme);
     }
