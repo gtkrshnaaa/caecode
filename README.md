@@ -64,7 +64,7 @@ You can build a `.deb` package complete with a desktop launcher and icon:
 make builddeb
 ```
 
-The default package version is `0.0.4`. You can override the version at build time:
+The default package version is `0.0.5`. You can override the version at build time:
 
 ```bash
 make builddeb VERSION=1.0.0
