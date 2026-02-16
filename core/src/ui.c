@@ -300,7 +300,9 @@ void create_new_terminal() {
     
     char **envp = g_get_environ();
     char **command = (char *[]){ "/bin/bash", NULL };
-    vte_terminal_spawn_async(VTE_TERMINAL(terminal), VTE_PTY_DEFAULT, NULL, command, envp, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, -1, NULL, NULL, NULL);
+    const char *work_dir = (strlen(current_folder) > 0) ? current_folder : NULL;
+
+    vte_terminal_spawn_async(VTE_TERMINAL(terminal), VTE_PTY_DEFAULT, work_dir, command, envp, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, -1, NULL, NULL, NULL);
     g_strfreev(envp);
 
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
