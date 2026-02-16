@@ -431,8 +431,8 @@ void create_main_window() {
     GdkRectangle geometry;
     gdk_monitor_get_geometry(monitor, &geometry);
 
-    int win_width = geometry.width * 0.9;
-    int win_height = geometry.height * 0.9;
+    int win_width = geometry.width * 0.85;
+    int win_height = geometry.height * 0.85;
     gtk_window_set_default_size(GTK_WINDOW(window), win_width, win_height);
 
     if (strlen(current_folder) == 0) show_welcome_screen(); 
