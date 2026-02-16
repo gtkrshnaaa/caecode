@@ -17,6 +17,8 @@ GtkSourceStyleSchemeManager *theme_manager;
 GtkTreeRowReference *current_file_row_ref = NULL;
 GList *file_list = NULL;
 GtkCssProvider *app_css_provider = NULL;
+GtkWidget *editor_stack;
+GtkWidget *welcome_screen;
 
 char current_file[1024] = "";
 char current_folder[1024] = "";
@@ -148,6 +150,73 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer use
     return FALSE;
 }
 
+void show_welcome_screen() {
+    gtk_stack_set_visible_child(GTK_STACK(editor_stack), welcome_screen);
+}
+
+void show_editor_view() {
+    gtk_stack_set_visible_child_name(GTK_STACK(editor_stack), "editor");
+}
+
+static void on_open_folder_clicked(GtkButton *btn, gpointer data) {
+    GtkWidget *dialog = gtk_file_chooser_dialog_new("Open Folder",
+        GTK_WINDOW(window), GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+        "_Cancel", GTK_RESPONSE_CANCEL, "_Open", GTK_RESPONSE_ACCEPT, NULL);
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        char *path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+        open_folder(path);
+        g_free(path);
+    }
+    gtk_widget_destroy(dialog);
+}
+
+static void on_recent_clicked(GtkButton *btn, gpointer data) {
+    char *path = (char *)data;
+    open_folder(path);
+}
+
+static GtkWidget* create_welcome_screen() {
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 20);
+    gtk_widget_set_valign(box, GTK_ALIGN_CENTER);
+    gtk_widget_set_halign(box, GTK_ALIGN_CENTER);
+
+    GtkWidget *title = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(title), "<span size='xx-large' weight='bold'>Welcome to Caecode</span>");
+    gtk_box_pack_start(GTK_BOX(box), title, FALSE, FALSE, 0);
+
+    GtkWidget *subtitle = gtk_label_new("A lightweight, premium editor for GNOME");
+    gtk_style_context_add_class(gtk_widget_get_style_context(subtitle), "dim-label");
+    gtk_box_pack_start(GTK_BOX(box), subtitle, FALSE, FALSE, 0);
+
+    GtkWidget *btn_open = gtk_button_new_with_label("Open Folder...");
+    gtk_widget_set_size_request(btn_open, 200, 40);
+    g_signal_connect(btn_open, "clicked", G_CALLBACK(on_open_folder_clicked), NULL);
+    gtk_box_pack_start(GTK_BOX(box), btn_open, FALSE, FALSE, 20);
+
+    // Recent Projects
+    GList *recent = get_recent_folders();
+    if (recent) {
+        GtkWidget *recent_label = gtk_label_new(NULL);
+        gtk_label_set_markup(GTK_LABEL(recent_label), "<b>Recent Projects</b>");
+        gtk_box_pack_start(GTK_BOX(box), recent_label, FALSE, FALSE, 10);
+
+        GtkWidget *recent_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+        for (GList *l = recent; l != NULL; l = l->next) {
+            char *path = (char *)l->data;
+            char *basename = g_path_get_basename(path);
+            GtkWidget *recent_btn = gtk_button_new_with_label(basename);
+            gtk_button_set_relief(GTK_BUTTON(recent_btn), GTK_RELIEF_NONE);
+            g_signal_connect(recent_btn, "clicked", G_CALLBACK(on_recent_clicked), g_strdup(path));
+            gtk_box_pack_start(GTK_BOX(recent_box), recent_btn, FALSE, FALSE, 0);
+            g_free(basename);
+        }
+        gtk_box_pack_start(GTK_BOX(box), recent_box, FALSE, FALSE, 0);
+        g_list_free_full(recent, g_free);
+    }
+
+    return box;
+}
+
 void create_main_window() {
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window), "Caecode");
@@ -189,7 +258,23 @@ void create_main_window() {
     GtkWidget *editor_scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(editor_scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(editor_scrolled_window), GTK_WIDGET(source_view));
-    gtk_paned_pack2(GTK_PANED(paned), editor_scrolled_window, TRUE, FALSE);
+
+    // Stack to toggle between Welcome and Editor
+    editor_stack = gtk_stack_new();
+    gtk_stack_set_transition_type(GTK_STACK(editor_stack), GTK_STACK_TRANSITION_TYPE_CROSSFADE);
+    gtk_stack_set_transition_duration(GTK_STACK(editor_stack), 300);
+    
+    welcome_screen = create_welcome_screen();
+    gtk_stack_add_named(GTK_STACK(editor_stack), welcome_screen, "welcome");
+    gtk_stack_add_named(GTK_STACK(editor_stack), editor_scrolled_window, "editor");
+    
+    gtk_paned_pack2(GTK_PANED(paned), editor_stack, TRUE, FALSE);
+
+    if (strlen(current_folder) == 0) {
+        show_welcome_screen();
+    } else {
+        show_editor_view();
+    }
 
     // Set initial sidebar width (divider position)
     gtk_paned_set_position(GTK_PANED(paned), 250);

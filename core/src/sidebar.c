@@ -137,6 +137,9 @@ void open_folder(const char *path) {
     g_queue_push_tail(populate_ctx->queue, root_task);
 
     populate_ctx->source_id = g_idle_add(populate_step, NULL);
+
+    save_recent_folder(path);
+    show_editor_view();
 }
 
 void reload_sidebar() {
