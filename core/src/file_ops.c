@@ -34,6 +34,16 @@ static void on_file_loaded(GObject *src, GAsyncResult *res, gpointer user_data) 
     // 4. Update language and final UI state
     GtkSourceLanguageManager *lm = gtk_source_language_manager_get_default();
     GtkSourceLanguage *language = gtk_source_language_manager_guess_language(lm, ctx->path, NULL);
+    
+    if (!language) {
+        // Smart fallback for custom user languages (C-like)
+        const char *ext = strrchr(ctx->path, '.');
+        if (ext && (strcmp(ext, ".unna") == 0 || strcmp(ext, ".nva") == 0 || 
+                    strcmp(ext, ".sna") == 0 || strcmp(ext, ".vana") == 0)) {
+            language = gtk_source_language_manager_get_language(lm, "c");
+        }
+    }
+
     gtk_source_buffer_set_language(text_buffer, language);
 
     mark_unsaved_file(ctx->path, FALSE);

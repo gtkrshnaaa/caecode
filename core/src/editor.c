@@ -143,6 +143,27 @@ void init_editor() {
     // Add system-wide themes path (installed)
     gtk_source_style_scheme_manager_append_search_path(theme_manager, "/usr/share/caecode/themes");
 
+    // Language Mapping setup
+    GtkSourceLanguageManager *lm = gtk_source_language_manager_get_default();
+    const gchar * const *current_dirs = gtk_source_language_manager_get_search_path(lm);
+    
+    // Calculate new size: current + 2 custom + 1 NULL
+    int count = 0;
+    while (current_dirs && current_dirs[count]) count++;
+    
+    gchar **new_dirs = g_new0(gchar *, count + 3);
+    for (int i = 0; i < count; i++) new_dirs[i] = g_strdup(current_dirs[i]);
+    
+    char *cwd_lang = g_get_current_dir();
+    new_dirs[count] = g_build_filename(cwd_lang, "core", "languages", NULL);
+    new_dirs[count + 1] = g_strdup("/usr/share/caecode/languages");
+    new_dirs[count + 2] = NULL;
+    
+    gtk_source_language_manager_set_search_path(lm, (const gchar **)new_dirs);
+    
+    g_strfreev(new_dirs);
+    g_free(cwd_lang);
+
     // Initial theme detection and apply
     apply_theme(is_system_dark_mode() ? 0 : 1);
 
