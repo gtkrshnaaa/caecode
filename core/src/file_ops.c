@@ -98,3 +98,60 @@ void save_file_as() {
     }
     gtk_widget_destroy(dialog);
 }
+void save_recent_folder(const char *path) {
+    if (!path || strlen(path) == 0) return;
+
+    char *cache_dir = g_build_filename(g_get_user_cache_dir(), "caecode", NULL);
+    g_mkdir_with_parents(cache_dir, 0755);
+    char *recent_file = g_build_filename(cache_dir, "recent_folders.txt", NULL);
+
+    GList *recent = get_recent_folders();
+    
+    // Check if path already exists, remove it to move it to top
+    GList *found = g_list_find_custom(recent, path, (GCompareFunc)g_strcmp0);
+    if (found) {
+        g_free(found->data);
+        recent = g_list_delete_link(recent, found);
+    }
+
+    recent = g_list_prepend(recent, g_strdup(path));
+
+    // Limit to top 10 recent folders
+    if (g_list_length(recent) > 10) {
+        GList *last = g_list_last(recent);
+        g_free(last->data);
+        recent = g_list_delete_link(recent, last);
+    }
+
+    FILE *f = fopen(recent_file, "w");
+    if (f) {
+        for (GList *l = recent; l != NULL; l = l->next) {
+            fprintf(f, "%s\n", (char *)l->data);
+        }
+        fclose(f);
+    }
+
+    g_list_free_full(recent, g_free);
+    g_free(recent_file);
+    g_free(cache_dir);
+}
+
+GList* get_recent_folders() {
+    GList *recent = NULL;
+    char *recent_file = g_build_filename(g_get_user_cache_dir(), "caecode", "recent_folders.txt", NULL);
+    
+    FILE *f = fopen(recent_file, "r");
+    if (f) {
+        char line[1024];
+        while (fgets(line, sizeof(line), f)) {
+            line[strcspn(line, "\n")] = 0;
+            if (strlen(line) > 0) {
+                recent = g_list_append(recent, g_strdup(line));
+            }
+        }
+        fclose(f);
+    }
+    
+    g_free(recent_file);
+    return recent;
+}
