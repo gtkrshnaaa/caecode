@@ -21,7 +21,8 @@ GtkWidget *editor_stack;
 GtkWidget *welcome_screen;
 GtkWidget *bottom_panel;
 GtkWidget *chat_panel;
-GtkWidget *terminal_notebook;
+GtkWidget *terminal_stack;
+GtkWidget *terminal_list;
 
 char current_file[1024] = "";
 char current_folder[1024] = "";
@@ -223,77 +224,121 @@ static GtkWidget* create_welcome_screen() {
     return box;
 }
 
+static void on_terminal_list_row_selected(GtkListBox *list, GtkListBoxRow *row, gpointer user_data) {
+    if (!row) return;
+    const char *name = g_object_get_data(G_OBJECT(row), "terminal-name");
+    gtk_stack_set_visible_child_name(GTK_STACK(terminal_stack), name);
+}
+
 static GtkWidget* create_bottom_panel() {
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_widget_set_name(vbox, "bottom-panel");
-    gtk_widget_set_size_request(vbox, -1, 200);
+    gtk_widget_set_size_request(vbox, -1, 230);
 
-    // Toolbar for terminal actions
-    GtkWidget *toolbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-    gtk_style_context_add_class(gtk_widget_get_style_context(toolbar), "terminal-toolbar");
+    // Header / Nav Bar
+    GtkWidget *header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 20);
+    gtk_style_context_add_class(gtk_widget_get_style_context(header), "terminal-toolbar");
     
-    GtkWidget *label = gtk_label_new(" TERMINAL ");
-    gtk_box_pack_start(GTK_BOX(toolbar), label, FALSE, FALSE, 5);
+    const char *tabs[] = {"PROBLEMS", "OUTPUT", "DEBUG CONSOLE", "TERMINAL", "PORTS"};
+    for (int i = 0; i < 5; i++) {
+        GtkWidget *btn = gtk_button_new_with_label(tabs[i]);
+        gtk_button_set_relief(GTK_BUTTON(btn), GTK_RELIEF_NONE);
+        gtk_widget_set_name(btn, "terminal-header-item");
+        gtk_style_context_add_class(gtk_widget_get_style_context(btn), "terminal-header-item");
+        if (i == 3) gtk_style_context_add_class(gtk_widget_get_style_context(btn), "active");
+        gtk_box_pack_start(GTK_BOX(header), btn, FALSE, FALSE, 0);
+    }
     
+    // Action buttons on the right side of header
+    GtkWidget *header_actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     GtkWidget *btn_new = gtk_button_new_from_icon_name("list-add-symbolic", GTK_ICON_SIZE_MENU);
     gtk_button_set_relief(GTK_BUTTON(btn_new), GTK_RELIEF_NONE);
     g_signal_connect(btn_new, "clicked", G_CALLBACK(create_new_terminal), NULL);
-    gtk_box_pack_start(GTK_BOX(toolbar), btn_new, FALSE, FALSE, 0);
-
-    gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
-
-    terminal_notebook = gtk_notebook_new();
-    gtk_notebook_set_tab_pos(GTK_NOTEBOOK(terminal_notebook), GTK_POS_TOP);
-    gtk_notebook_set_scrollable(GTK_NOTEBOOK(terminal_notebook), TRUE);
-    gtk_notebook_set_show_border(GTK_NOTEBOOK(terminal_notebook), FALSE);
+    gtk_box_pack_start(GTK_BOX(header_actions), btn_new, FALSE, FALSE, 0);
     
-    gtk_box_pack_start(GTK_BOX(vbox), terminal_notebook, TRUE, TRUE, 0);
+    GtkWidget *btn_close_panel = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
+    gtk_button_set_relief(GTK_BUTTON(btn_close_panel), GTK_RELIEF_NONE);
+    g_signal_connect_swapped(btn_close_panel, "clicked", G_CALLBACK(gtk_widget_hide), bottom_panel);
+    gtk_box_pack_start(GTK_BOX(header_actions), btn_close_panel, FALSE, FALSE, 0);
+    
+    gtk_box_pack_end(GTK_BOX(header), header_actions, FALSE, FALSE, 10);
+    gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, FALSE, 0);
+
+    // Main Content: Terminal + List
+    GtkWidget *h_paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
+    
+    terminal_stack = gtk_stack_new();
+    gtk_stack_set_transition_type(GTK_STACK(terminal_stack), GTK_STACK_TRANSITION_TYPE_NONE);
+    gtk_paned_pack1(GTK_PANED(h_paned), terminal_stack, TRUE, FALSE);
+    
+    GtkWidget *list_scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(list_scrolled), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_widget_set_size_request(list_scrolled, 150, -1);
+    gtk_style_context_add_class(gtk_widget_get_style_context(list_scrolled), "terminal-session-list");
+    
+    terminal_list = gtk_list_box_new();
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(terminal_list), GTK_SELECTION_SINGLE);
+    g_signal_connect(terminal_list, "row-selected", G_CALLBACK(on_terminal_list_row_selected), NULL);
+    gtk_container_add(GTK_CONTAINER(list_scrolled), terminal_list);
+    
+    gtk_paned_pack2(GTK_PANED(h_paned), list_scrolled, FALSE, FALSE);
+    gtk_paned_set_position(GTK_PANED(h_paned), 800); // Default position
+    
+    gtk_box_pack_start(GTK_BOX(vbox), h_paned, TRUE, TRUE, 0);
     
     return vbox;
 }
 
 void create_new_terminal() {
+    static int term_count = 0;
+    char term_id[32];
+    sprintf(term_id, "term-%d", ++term_count);
+
     GtkWidget *terminal = vte_terminal_new();
     gtk_widget_set_name(terminal, "vte-terminal");
-    
-    // Set some defaults for the terminal
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(terminal), 10000);
-    vte_terminal_set_cursor_blink_mode(VTE_TERMINAL(terminal), VTE_CURSOR_BLINK_ON);
     
     char **envp = g_get_environ();
     char **command = (char *[]){ "/bin/bash", NULL };
-    
-    vte_terminal_spawn_async(VTE_TERMINAL(terminal),
-        VTE_PTY_DEFAULT,
-        NULL,
-        command,
-        envp,
-        G_SPAWN_SEARCH_PATH,
-        NULL, NULL, NULL,
-        -1, NULL, NULL, NULL);
-        
+    vte_terminal_spawn_async(VTE_TERMINAL(terminal), VTE_PTY_DEFAULT, NULL, command, envp, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, -1, NULL, NULL, NULL);
     g_strfreev(envp);
 
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(scrolled_window), terminal);
+    gtk_widget_show_all(scrolled_window);
     
-    GtkWidget *tab_label = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
-    gtk_box_pack_start(GTK_BOX(tab_label), gtk_label_new("bash"), TRUE, TRUE, 0);
+    gtk_stack_add_named(GTK_STACK(terminal_stack), scrolled_window, term_id);
+
+    // List Row
+    GtkWidget *row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    GtkWidget *icon = gtk_image_new_from_icon_name("utilities-terminal-symbolic", GTK_ICON_SIZE_MENU);
+    gtk_box_pack_start(GTK_BOX(row_box), icon, FALSE, FALSE, 5);
+    
+    char label_text[32];
+    sprintf(label_text, "bash (%d)", term_count);
+    GtkWidget *label = gtk_label_new(label_text);
+    gtk_box_pack_start(GTK_BOX(row_box), label, TRUE, TRUE, 0);
+    
     GtkWidget *btn_close = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
     gtk_button_set_relief(GTK_BUTTON(btn_close), GTK_RELIEF_NONE);
-    gtk_box_pack_start(GTK_BOX(tab_label), btn_close, FALSE, FALSE, 0);
-    gtk_widget_show_all(tab_label);
+    gtk_box_pack_start(GTK_BOX(row_box), btn_close, FALSE, FALSE, 0);
+    gtk_widget_show_all(row_box);
 
-    int index = gtk_notebook_append_page(GTK_NOTEBOOK(terminal_notebook), scrolled_window, tab_label);
-    gtk_widget_show_all(scrolled_window);
-    gtk_notebook_set_current_page(GTK_NOTEBOOK(terminal_notebook), index);
+    GtkWidget *list_row = gtk_list_box_row_new();
+    gtk_container_add(GTK_CONTAINER(list_row), row_box);
+    g_object_set_data_full(G_OBJECT(list_row), "terminal-name", g_strdup(term_id), g_free);
+    gtk_widget_show_all(list_row);
     
-    // Close terminal logic
+    gtk_list_box_insert(GTK_LIST_BOX(terminal_list), list_row, -1);
+    
+    // Sync
+    gtk_list_box_select_row(GTK_LIST_BOX(terminal_list), GTK_LIST_BOX_ROW(list_row));
+    
+    // Memory/Widget Management
     g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), scrolled_window);
-    g_signal_connect(terminal, "child-exited", G_CALLBACK(gtk_widget_destroy), scrolled_window);
-    
-    // Set theme colors if possible (needs current theme knowledge)
-    // For now, it will use default, but editor.c will update it.
+    g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), list_row);
+    g_signal_connect_swapped(terminal, "child-exited", G_CALLBACK(gtk_widget_destroy), scrolled_window);
+    g_signal_connect_swapped(terminal, "child-exited", G_CALLBACK(gtk_widget_destroy), list_row);
 }
 
 static GtkWidget* create_chat_panel() {

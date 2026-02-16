@@ -74,9 +74,10 @@ void switch_theme() {
         gdk_rgba_parse(&bg_rgba, bg_color);
         gdk_rgba_parse(&fg_rgba, fg_color);
 
-        int n_pages = gtk_notebook_get_n_pages(GTK_NOTEBOOK(terminal_notebook));
-        for (int i = 0; i < n_pages; i++) {
-            GtkWidget *page = gtk_notebook_get_nth_page(GTK_NOTEBOOK(terminal_notebook), i);
+        int n_pages = 0;
+        GList *children = gtk_container_get_children(GTK_CONTAINER(terminal_stack));
+        for (GList *l = children; l != NULL; l = l->next) {
+            GtkWidget *page = (GtkWidget *)l->data;
             if (GTK_IS_SCROLLED_WINDOW(page)) {
                 GtkWidget *terminal = gtk_bin_get_child(GTK_BIN(page));
                 if (VTE_IS_TERMINAL(terminal)) {
@@ -84,20 +85,25 @@ void switch_theme() {
                 }
             }
         }
+        g_list_free(children);
 
         // Additional terminal-specific CSS
         char *term_css = g_strdup_printf(
             ".terminal-toolbar { background-color: %s; border-bottom: 1px solid %s; }"
-            "notebook stack { background-color: %s; }",
+            ".terminal-header-item { padding: 5px 10px; color: %s; opacity: 0.7; }"
+            ".terminal-header-item.active { opacity: 1.0; border-bottom: 2px solid #3584e4; }"
+            ".terminal-session-list { background-color: %s; border-left: 1px solid %s; }",
             (current_theme == 0) ? "#252525" : "#F3F3F3",
             (current_theme == 0) ? "#333333" : "#DDDDDD",
-            bg_color
+            fg_color,
+            (current_theme == 0) ? "#1e1e1e" : "#FFFFFF",
+            (current_theme == 0) ? "#333333" : "#DDDDDD"
         );
-        GtkStyleContext *nb_ctx = gtk_widget_get_style_context(terminal_notebook);
-        GtkCssProvider *nb_provider = gtk_css_provider_new();
-        gtk_css_provider_load_from_data(nb_provider, term_css, -1, NULL);
-        gtk_style_context_add_provider(nb_ctx, GTK_STYLE_PROVIDER(nb_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-        g_object_unref(nb_provider);
+        GtkStyleContext *ts_ctx = gtk_widget_get_style_context(terminal_stack);
+        GtkCssProvider *ts_provider = gtk_css_provider_new();
+        gtk_css_provider_load_from_data(ts_provider, term_css, -1, NULL);
+        gtk_style_context_add_provider(ts_ctx, GTK_STYLE_PROVIDER(ts_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+        g_object_unref(ts_provider);
         g_free(term_css);
 
         set_status_message(g_strdup_printf("Theme switched to: %s", themes[current_theme]));

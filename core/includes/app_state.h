@@ -24,7 +24,8 @@ extern GtkWidget *editor_stack;
 extern GtkWidget *welcome_screen;
 extern GtkWidget *bottom_panel;
 extern GtkWidget *chat_panel;
-extern GtkWidget *terminal_notebook;
+extern GtkWidget *terminal_stack;
+extern GtkWidget *terminal_list;
 
 // Global State
 extern char current_file[1024];
