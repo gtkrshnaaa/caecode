@@ -28,6 +28,7 @@ extern GtkWidget *terminal_stack;
 extern GtkWidget *terminal_list;
 
 // Global State
+extern int current_theme_idx;
 extern char current_file[1024];
 extern char current_folder[1024];
 extern char *last_saved_content;

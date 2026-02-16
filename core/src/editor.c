@@ -1,7 +1,6 @@
 #include "editor.h"
 #include <string.h>
 
-static int current_theme_idx = 0;
 static const char *themes[] = { "caecode-dark", "caecode-light" };
 
 static gboolean is_system_dark_mode() {

@@ -24,6 +24,7 @@ GtkWidget *chat_panel;
 GtkWidget *terminal_stack;
 GtkWidget *terminal_list;
 
+int current_theme_idx = 0;
 char current_file[1024] = "";
 char current_folder[1024] = "";
 char *last_saved_content = NULL;
@@ -342,8 +343,10 @@ void create_new_terminal() {
     // Memory/Widget Management
     g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), scrolled_window);
     g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), list_row);
-    g_signal_connect_swapped(terminal, "child-exited", G_CALLBACK(gtk_widget_destroy), scrolled_window);
     g_signal_connect_swapped(terminal, "child-exited", G_CALLBACK(gtk_widget_destroy), list_row);
+
+    // Ensure new terminal inherits correct theme colors
+    apply_theme(current_theme_idx);
 }
 
 static GtkWidget* create_chat_panel() {
