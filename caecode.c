@@ -16,7 +16,7 @@ gboolean sidebar_visible = TRUE;
 char current_file[1024] = "";
 char *last_saved_content = NULL; // Saves the last saved content
 GtkSourceStyleSchemeManager *theme_manager; // Manager for themes
-// gboolean is_dark_theme = TRUE; // Track current theme state (unused)
+GtkTreeRowReference *current_file_row_ref = NULL; // Reference to the currently opened file in the sidebar
 
 char current_folder[1024] = ""; // Saves the path of the currently opened folder
 
@@ -65,6 +65,10 @@ void select_file_in_sidebar(const char *filepath) {
                 gtk_tree_view_set_cursor(GTK_TREE_VIEW(tree_view), tree_path, NULL, FALSE);
                 gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree_view), tree_path, NULL, TRUE, 0.5, 0.0);
 
+                // Store row reference for fast access
+                if (current_file_row_ref) gtk_tree_row_reference_free(current_file_row_ref);
+                current_file_row_ref = gtk_tree_row_reference_new(model, tree_path);
+
                 gtk_tree_path_free(tree_path);
                 g_free(path);
                 return;
@@ -96,6 +100,10 @@ void select_file_in_sidebar_recursive(GtkTreeModel *model, GtkTreeIter *iter, co
             // Highlight files
             gtk_tree_view_set_cursor(GTK_TREE_VIEW(tree_view), tree_path, NULL, FALSE);
             gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(tree_view), tree_path, NULL, TRUE, 0.5, 0.0);
+
+            // Store row reference for fast access
+            if (current_file_row_ref) gtk_tree_row_reference_free(current_file_row_ref);
+            current_file_row_ref = gtk_tree_row_reference_new(model, tree_path);
 
             gtk_tree_path_free(tree_path);
             g_free(path);
