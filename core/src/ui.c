@@ -192,6 +192,9 @@ static GtkWidget* create_welcome_screen() {
     gtk_box_pack_start(GTK_BOX(box), title, FALSE, FALSE, 0);
 
     GtkWidget *subtitle = gtk_label_new("A lightweight, premium editor for GNOME");
+    gtk_label_set_line_wrap(GTK_LABEL(subtitle), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(subtitle), 40);
+    gtk_label_set_justify(GTK_LABEL(subtitle), GTK_JUSTIFY_CENTER);
     gtk_style_context_add_class(gtk_widget_get_style_context(subtitle), "dim-label");
     gtk_box_pack_start(GTK_BOX(box), subtitle, FALSE, FALSE, 0);
 
