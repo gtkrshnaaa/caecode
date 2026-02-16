@@ -28,6 +28,7 @@ static void on_file_loaded(GObject *src, GAsyncResult *res, gpointer user_data) 
     // 3. Update buffer (triggers "changed" signal)
     gtk_source_buffer_begin_not_undoable_action(text_buffer);
     gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_buffer), contents, (gint)len);
+    gtk_text_buffer_set_modified(GTK_TEXT_BUFFER(text_buffer), FALSE);
     gtk_source_buffer_end_not_undoable_action(text_buffer);
 
     // 4. Update language and final UI state
@@ -76,6 +77,7 @@ void save_file() {
 
     if (last_saved_content) g_free(last_saved_content);
     last_saved_content = g_strdup(text);
+    gtk_text_buffer_set_modified(GTK_TEXT_BUFFER(text_buffer), FALSE);
 
     GFile *gf = g_file_new_for_path(current_file);
     g_file_replace_contents_async(gf,

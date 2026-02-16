@@ -130,6 +130,7 @@ void close_all_files() {
         g_free(last_saved_content);
         last_saved_content = NULL;
     }
+    gtk_text_buffer_set_modified(GTK_TEXT_BUFFER(text_buffer), FALSE);
     if (current_file_row_ref) {
         gtk_tree_row_reference_free(current_file_row_ref);
         current_file_row_ref = NULL;
@@ -215,7 +216,14 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer use
                 }
                 break;
             case GDK_KEY_x: gtk_text_buffer_cut_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), TRUE); ctrl_k_pending = FALSE; return TRUE;
-            case GDK_KEY_z: if (gtk_source_buffer_can_undo(text_buffer)) gtk_source_buffer_undo(text_buffer); ctrl_k_pending = FALSE; return TRUE;
+            case GDK_KEY_z: 
+                if (shift) {
+                    if (gtk_source_buffer_can_redo(text_buffer)) gtk_source_buffer_redo(text_buffer);
+                } else {
+                    if (gtk_source_buffer_can_undo(text_buffer)) gtk_source_buffer_undo(text_buffer);
+                }
+                ctrl_k_pending = FALSE; 
+                return TRUE;
             case GDK_KEY_y: if (gtk_source_buffer_can_redo(text_buffer)) gtk_source_buffer_redo(text_buffer); ctrl_k_pending = FALSE; return TRUE;
             
             case GDK_KEY_w:

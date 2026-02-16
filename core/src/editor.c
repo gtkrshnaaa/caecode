@@ -127,6 +127,9 @@ void init_editor() {
     gtk_source_view_set_smart_backspace(source_view, TRUE);
     gtk_source_view_set_highlight_current_line(source_view, TRUE);
 
+    // Ensure infinite undo and clean initial state
+    gtk_source_buffer_set_max_undo_levels(text_buffer, -1);
+
     // Initial theme setup
     theme_manager = gtk_source_style_scheme_manager_get_default();
     
@@ -152,22 +155,30 @@ void init_editor() {
 }
 
 void on_text_changed(GtkTextBuffer *buffer, gpointer user_data) {
-    if (strlen(current_file) > 0 && last_saved_content) {
+    if (strlen(current_file) == 0) return;
+
+    // Use built-in modified state for high-performance tracking
+    gboolean modified = gtk_text_buffer_get_modified(buffer);
+    
+    // Deep comparison fallback only if needed or when saving/loading
+    // For real-time typing, 'modified' is sufficient and efficient.
+    if (modified && last_saved_content) {
         GtkTextIter start, end;
         gtk_text_buffer_get_bounds(buffer, &start, &end);
         
-        // Fast path: compare lengths first
         gint current_len = gtk_text_iter_get_offset(&end);
         gint saved_len = strlen(last_saved_content);
         
-        gboolean is_same = FALSE;
         if (current_len == saved_len) {
             char *current_text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
-            is_same = (strcmp(current_text, last_saved_content) == 0);
+            if (strcmp(current_text, last_saved_content) == 0) {
+                modified = FALSE;
+                gtk_text_buffer_set_modified(buffer, FALSE);
+            }
             g_free(current_text);
         }
-
-        mark_unsaved_file(current_file, !is_same); 
-        update_status_with_unsaved_mark(is_same); 
     }
+
+    mark_unsaved_file(current_file, modified); 
+    update_status_with_unsaved_mark(!modified); 
 }
