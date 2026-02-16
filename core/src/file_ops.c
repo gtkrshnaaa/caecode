@@ -17,20 +17,24 @@ static void on_file_loaded(GObject *src, GAsyncResult *res, gpointer user_data) 
         return;
     }
 
-    // Apply to UI (main thread)
+    // 1. Update metadata first to be ready for signals
     g_strlcpy(current_file, ctx->path, sizeof(current_file));
+    if (last_saved_content) g_free(last_saved_content);
+    last_saved_content = g_strdup(contents);
+    
+    // 2. Select in sidebar to update current_file_row_ref
+    select_file_in_sidebar(ctx->path);
+
+    // 3. Update buffer (triggers "changed" signal)
     gtk_source_buffer_begin_not_undoable_action(text_buffer);
     gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_buffer), contents, (gint)len);
     gtk_source_buffer_end_not_undoable_action(text_buffer);
 
-    if (last_saved_content) g_free(last_saved_content);
-    last_saved_content = g_strdup(contents);
-
+    // 4. Update language and final UI state
     GtkSourceLanguageManager *lm = gtk_source_language_manager_get_default();
     GtkSourceLanguage *language = gtk_source_language_manager_guess_language(lm, ctx->path, NULL);
     gtk_source_buffer_set_language(text_buffer, language);
 
-    select_file_in_sidebar(ctx->path);
     mark_unsaved_file(ctx->path, FALSE);
     update_status_with_unsaved_mark(TRUE);
     show_editor_view();
