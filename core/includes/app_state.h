@@ -5,7 +5,7 @@
 #include <gtksourceview/gtksource.h>
 
 // Version and Constants
-#define VERSION "0.0.5"
+#define VERSION "0.0.6"
 
 // Global UI Widgets (externed for module access)
 extern GtkWidget *window;
