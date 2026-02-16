@@ -41,6 +41,27 @@ void apply_theme(int index) {
         const char *bg_color = (current_theme_idx == 0) ? "#1e1e1e" : "#FFFFFF";
         const char *fg_color = (current_theme_idx == 0) ? "#E0E0E0" : "#333333";
         
+        // Define 16-color palette based on syntax colors
+        const char *palette_str[16];
+        if (current_theme_idx == 0) { // Dark
+            const char *dark_p[16] = {
+                "#1e1e1e", "#808080", "#D3D3D3", "#E0E0E0", "#FFFFFF", "#808080", "#D3D3D3", "#E0E0E0",
+                "#404040", "#808080", "#D3D3D3", "#FFFFFF", "#FFFFFF", "#808080", "#D3D3D3", "#FFFFFF"
+            };
+            memcpy(palette_str, dark_p, sizeof(palette_str));
+        } else { // Light
+            const char *light_p[16] = {
+                "#FFFFFF", "#606060", "#909090", "#333333", "#000000", "#606060", "#909090", "#333333",
+                "#A0A0A0", "#606060", "#909090", "#000000", "#000000", "#606060", "#909090", "#000000"
+            };
+            memcpy(palette_str, light_p, sizeof(palette_str));
+        }
+
+        GdkRGBA bg_rgba, fg_rgba, palette_rgba[16];
+        gdk_rgba_parse(&bg_rgba, bg_color);
+        gdk_rgba_parse(&fg_rgba, fg_color);
+        for (int i = 0; i < 16; i++) gdk_rgba_parse(&palette_rgba[i], palette_str[i]);
+
         char *css_data = g_strdup_printf(
             "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar, #welcome-screen, #bottom-panel, #chat-panel { background-color: %s; color: %s; }"
             "treeview { padding-bottom: 100px; }"
@@ -55,18 +76,13 @@ void apply_theme(int index) {
         gtk_css_provider_load_from_data(app_css_provider, css_data, -1, NULL);
         g_free(css_data);
 
-        // Update Terminal colors
-        GdkRGBA bg_rgba, fg_rgba;
-        gdk_rgba_parse(&bg_rgba, bg_color);
-        gdk_rgba_parse(&fg_rgba, fg_color);
-
         GList *children = gtk_container_get_children(GTK_CONTAINER(terminal_stack));
         for (GList *l = children; l != NULL; l = l->next) {
             GtkWidget *page = (GtkWidget *)l->data;
             if (GTK_IS_SCROLLED_WINDOW(page)) {
                 GtkWidget *terminal = gtk_bin_get_child(GTK_BIN(page));
                 if (VTE_IS_TERMINAL(terminal)) {
-                    vte_terminal_set_colors(VTE_TERMINAL(terminal), &fg_rgba, &bg_rgba, NULL, 0);
+                    vte_terminal_set_colors(VTE_TERMINAL(terminal), &fg_rgba, &bg_rgba, palette_rgba, 16);
                 }
             }
         }

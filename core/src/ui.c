@@ -119,8 +119,29 @@ static void toggle_sidebar() {
 }
 
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
+    GtkWidget *focus = gtk_window_get_focus(GTK_WINDOW(window));
+    gboolean is_terminal = focus && VTE_IS_TERMINAL(focus);
+
     if ((event->state & GDK_CONTROL_MASK) != 0) {
-        switch (event->keyval) {
+        gboolean shift = (event->state & GDK_SHIFT_MASK) != 0;
+
+        // Specialized Terminal Shortcuts
+        if (is_terminal) {
+            if (event->keyval == GDK_KEY_c && !shift) {
+                // Pass Ctrl+C to terminal for signal interruption
+                return FALSE;
+            }
+            if ((event->keyval == GDK_KEY_C || event->keyval == GDK_KEY_c) && shift) {
+                vte_terminal_copy_clipboard(VTE_TERMINAL(focus));
+                return TRUE;
+            }
+            if ((event->keyval == GDK_KEY_V || event->keyval == GDK_KEY_v) && shift) {
+                vte_terminal_paste_clipboard(VTE_TERMINAL(focus));
+                return TRUE;
+            }
+        }
+
+        switch (gdk_keyval_to_lower(event->keyval)) {
             case GDK_KEY_o: {
                 GtkWidget *dialog = gtk_file_chooser_dialog_new("Open Folder",
                     GTK_WINDOW(window), GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
@@ -148,8 +169,18 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer use
             case GDK_KEY_j: move_cursor_left(); return TRUE;
             case GDK_KEY_l: move_cursor_right(); return TRUE;
             
-            case GDK_KEY_c: gtk_text_buffer_copy_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD)); return TRUE;
-            case GDK_KEY_v: gtk_text_buffer_paste_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), NULL, TRUE); return TRUE;
+            case GDK_KEY_c: 
+                if (!is_terminal) {
+                    gtk_text_buffer_copy_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD)); 
+                    return TRUE;
+                }
+                break;
+            case GDK_KEY_v: 
+                if (!is_terminal) {
+                    gtk_text_buffer_paste_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), NULL, TRUE); 
+                    return TRUE;
+                }
+                break;
             case GDK_KEY_x: gtk_text_buffer_cut_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), TRUE); return TRUE;
             case GDK_KEY_z: if (gtk_source_buffer_can_undo(text_buffer)) gtk_source_buffer_undo(text_buffer); return TRUE;
             case GDK_KEY_y: if (gtk_source_buffer_can_redo(text_buffer)) gtk_source_buffer_redo(text_buffer); return TRUE;
