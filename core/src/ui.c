@@ -23,6 +23,7 @@ GtkWidget *bottom_panel;
 GtkWidget *chat_panel;
 GtkWidget *terminal_stack;
 GtkWidget *terminal_list;
+GtkWidget *empty_state;
 
 int current_theme_idx = 0;
 char current_file[1024] = "";
@@ -118,7 +119,27 @@ static void toggle_sidebar() {
     gtk_widget_set_visible(sidebar_scrolled_window, sidebar_visible);
 }
 
+void show_empty_state() {
+    gtk_stack_set_visible_child_name(GTK_STACK(editor_stack), "empty");
+}
+
+void close_all_files() {
+    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_buffer), "", 0);
+    current_file[0] = '\0';
+    if (last_saved_content) {
+        g_free(last_saved_content);
+        last_saved_content = NULL;
+    }
+    if (current_file_row_ref) {
+        gtk_tree_row_reference_free(current_file_row_ref);
+        current_file_row_ref = NULL;
+    }
+    gtk_window_set_title(GTK_WINDOW(window), "Caecode");
+    show_empty_state();
+}
+
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
+    static gboolean ctrl_k_pending = FALSE;
     GtkWidget *focus = gtk_window_get_focus(GTK_WINDOW(window));
     gboolean is_terminal = focus && VTE_IS_TERMINAL(focus);
 
@@ -141,7 +162,16 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer use
             }
         }
 
-        switch (gdk_keyval_to_lower(event->keyval)) {
+        guint key = gdk_keyval_to_lower(event->keyval);
+        
+        // Handle Ctrl+K Chord Start
+        if (key == GDK_KEY_k) {
+            ctrl_k_pending = TRUE;
+            set_status_message("Ctrl+K pressed. Waiting for next key...");
+            return TRUE;
+        }
+
+        switch (key) {
             case GDK_KEY_o: {
                 GtkWidget *dialog = gtk_file_chooser_dialog_new("Open Folder",
                     GTK_WINDOW(window), GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
@@ -152,17 +182,18 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer use
                     g_free(path);
                 }
                 gtk_widget_destroy(dialog);
+                ctrl_k_pending = FALSE;
                 return TRUE;
             }
-            case GDK_KEY_b: toggle_sidebar(); return TRUE;
-            case GDK_KEY_s: save_file(); return TRUE;
-            case GDK_KEY_m: switch_theme(); return TRUE;
-            case GDK_KEY_p: show_search_popup(); return TRUE;
-            case GDK_KEY_r: reload_sidebar(); return TRUE;
-            case GDK_KEY_q: close_folder(); return TRUE;
+            case GDK_KEY_b: toggle_sidebar(); ctrl_k_pending = FALSE; return TRUE;
+            case GDK_KEY_s: save_file(); ctrl_k_pending = FALSE; return TRUE;
+            case GDK_KEY_m: switch_theme(); ctrl_k_pending = FALSE; return TRUE;
+            case GDK_KEY_p: show_search_popup(); ctrl_k_pending = FALSE; return TRUE;
+            case GDK_KEY_r: reload_sidebar(); ctrl_k_pending = FALSE; return TRUE;
+            case GDK_KEY_q: close_folder(); show_welcome_screen(); ctrl_k_pending = FALSE; return TRUE;
             
-            case GDK_KEY_t: gtk_widget_set_visible(bottom_panel, !gtk_widget_get_visible(bottom_panel)); return TRUE;
-            case GDK_KEY_g: gtk_widget_set_visible(chat_panel, !gtk_widget_get_visible(chat_panel)); return TRUE;
+            case GDK_KEY_t: gtk_widget_set_visible(bottom_panel, !gtk_widget_get_visible(bottom_panel)); ctrl_k_pending = FALSE; return TRUE;
+            case GDK_KEY_g: gtk_widget_set_visible(chat_panel, !gtk_widget_get_visible(chat_panel)); ctrl_k_pending = FALSE; return TRUE;
             
             case GDK_KEY_i: move_cursor_up(); return TRUE;
             case GDK_KEY_k: move_cursor_down(); return TRUE;
@@ -172,29 +203,54 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer use
             case GDK_KEY_c: 
                 if (!is_terminal) {
                     gtk_text_buffer_copy_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD)); 
+                    ctrl_k_pending = FALSE;
                     return TRUE;
                 }
                 break;
             case GDK_KEY_v: 
                 if (!is_terminal) {
                     gtk_text_buffer_paste_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), NULL, TRUE); 
+                    ctrl_k_pending = FALSE;
                     return TRUE;
                 }
                 break;
-            case GDK_KEY_x: gtk_text_buffer_cut_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), TRUE); return TRUE;
-            case GDK_KEY_z: if (gtk_source_buffer_can_undo(text_buffer)) gtk_source_buffer_undo(text_buffer); return TRUE;
-            case GDK_KEY_y: if (gtk_source_buffer_can_redo(text_buffer)) gtk_source_buffer_redo(text_buffer); return TRUE;
+            case GDK_KEY_x: gtk_text_buffer_cut_clipboard(GTK_TEXT_BUFFER(text_buffer), gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), TRUE); ctrl_k_pending = FALSE; return TRUE;
+            case GDK_KEY_z: if (gtk_source_buffer_can_undo(text_buffer)) gtk_source_buffer_undo(text_buffer); ctrl_k_pending = FALSE; return TRUE;
+            case GDK_KEY_y: if (gtk_source_buffer_can_redo(text_buffer)) gtk_source_buffer_redo(text_buffer); ctrl_k_pending = FALSE; return TRUE;
+            
+            case GDK_KEY_w:
+                if (ctrl_k_pending) {
+                    close_all_files();
+                    ctrl_k_pending = FALSE;
+                    return TRUE;
+                }
+                break;
+        }
+    } else {
+        // Plain key pressed, check for chord continuation without Ctrl
+        if (ctrl_k_pending) {
+            if (gdk_keyval_to_lower(event->keyval) == GDK_KEY_w) {
+                close_all_files();
+                ctrl_k_pending = FALSE;
+                return TRUE;
+            }
+            ctrl_k_pending = FALSE; // Reset if any other key is pressed
+            update_status_with_relative_path();
         }
     }
     return FALSE;
 }
 
 void show_welcome_screen() {
-    gtk_stack_set_visible_child(GTK_STACK(editor_stack), welcome_screen);
+    gtk_stack_set_visible_child_name(GTK_STACK(editor_stack), "welcome");
 }
 
 void show_editor_view() {
-    gtk_stack_set_visible_child_name(GTK_STACK(editor_stack), "editor");
+    if (strlen(current_file) == 0) {
+        show_empty_state();
+    } else {
+        gtk_stack_set_visible_child_name(GTK_STACK(editor_stack), "editor");
+    }
 }
 
 static void on_open_folder_clicked(GtkButton *btn, gpointer data) {
@@ -255,6 +311,52 @@ static GtkWidget* create_welcome_screen() {
         gtk_box_pack_start(GTK_BOX(box), recent_box, FALSE, FALSE, 0);
         g_list_free_full(recent, g_free);
     }
+
+    return box;
+}
+
+static GtkWidget* create_empty_state() {
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 20);
+    gtk_widget_set_valign(box, GTK_ALIGN_CENTER);
+    gtk_widget_set_halign(box, GTK_ALIGN_CENTER);
+
+    GtkWidget *icon = gtk_image_new_from_icon_name("document-open-recent-symbolic", GTK_ICON_SIZE_DIALOG);
+    gtk_style_context_add_class(gtk_widget_get_style_context(icon), "dim-label");
+    gtk_box_pack_start(GTK_BOX(box), icon, FALSE, FALSE, 0);
+
+    GtkWidget *title = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(title), "<span size='x-large' weight='bold'>No File Selected</span>");
+    gtk_box_pack_start(GTK_BOX(box), title, FALSE, FALSE, 0);
+
+    GtkWidget *subtitle = gtk_label_new("Select a file from the sidebar or use shortcuts");
+    gtk_style_context_add_class(gtk_widget_get_style_context(subtitle), "dim-label");
+    gtk_box_pack_start(GTK_BOX(box), subtitle, FALSE, FALSE, 0);
+
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
+    gtk_widget_set_halign(grid, GTK_ALIGN_CENTER);
+
+    const char *shortcuts[][2] = {
+        {"Search File", "Ctrl + P"},
+        {"Open Folder", "Ctrl + O"},
+        {"Terminal", "Ctrl + T"},
+        {"Show Chat", "Ctrl + G"}
+    };
+
+    for (int i = 0; i < 4; i++) {
+        GtkWidget *l1 = gtk_label_new(shortcuts[i][0]);
+        gtk_widget_set_halign(l1, GTK_ALIGN_START);
+        GtkWidget *l2 = gtk_label_new(NULL);
+        gtk_label_set_markup(GTK_LABEL(l2), g_strdup_printf("<b>%s</b>", shortcuts[i][1]));
+        gtk_widget_set_halign(l2, GTK_ALIGN_END);
+        gtk_style_context_add_class(gtk_widget_get_style_context(l1), "dim-label");
+        gtk_style_context_add_class(gtk_widget_get_style_context(l2), "dim-label");
+
+        gtk_grid_attach(GTK_GRID(grid), l1, 0, i, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), l2, 1, i, 1, 1);
+    }
+    gtk_box_pack_start(GTK_BOX(box), grid, FALSE, FALSE, 20);
 
     return box;
 }
@@ -446,12 +548,21 @@ void create_main_window() {
     welcome_screen = create_welcome_screen();
     gtk_widget_set_name(welcome_screen, "welcome-screen");
     
+    empty_state = create_empty_state();
+    gtk_widget_set_name(empty_state, "empty-state");
+
     GtkWidget *welcome_scroll = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(welcome_scroll), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(welcome_scroll), welcome_screen);
     gtk_widget_show_all(welcome_scroll);
 
+    GtkWidget *empty_scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(empty_scroll), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_container_add(GTK_CONTAINER(empty_scroll), empty_state);
+    gtk_widget_show_all(empty_scroll);
+
     gtk_stack_add_named(GTK_STACK(editor_stack), welcome_scroll, "welcome");
+    gtk_stack_add_named(GTK_STACK(editor_stack), empty_scroll, "empty");
     gtk_stack_add_named(GTK_STACK(editor_stack), editor_scrolled_window, "editor");
 
     // Nesting logic

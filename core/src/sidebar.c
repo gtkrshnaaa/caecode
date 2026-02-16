@@ -139,13 +139,7 @@ void open_folder(const char *path) {
     populate_ctx->source_id = g_idle_add(populate_step, NULL);
 
     save_recent_folder(path);
-    show_editor_view();
-}
-
-void reload_sidebar() {
-    if (strlen(current_folder) > 0) {
-        open_folder(current_folder);
-    }
+    show_editor_view(); // Will show empty state as current_file is empty
 }
 
 void close_folder() {
@@ -158,7 +152,15 @@ void close_folder() {
         gtk_tree_row_reference_free(current_file_row_ref);
         current_file_row_ref = NULL;
     }
+    show_welcome_screen();
 }
+
+void reload_sidebar() {
+    if (strlen(current_folder) > 0) {
+        open_folder(current_folder);
+    }
+}
+
 
 static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColumn *col, gpointer user_data) {
     GtkTreeIter iter;

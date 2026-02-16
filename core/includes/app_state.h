@@ -26,6 +26,7 @@ extern GtkWidget *bottom_panel;
 extern GtkWidget *chat_panel;
 extern GtkWidget *terminal_stack;
 extern GtkWidget *terminal_list;
+extern GtkWidget *empty_state;
 
 // Global State
 extern int current_theme_idx;
@@ -54,6 +55,7 @@ void update_status_with_unsaved_mark(gboolean is_same);
 void mark_unsaved_file(const char *filepath, gboolean unsaved);
 void select_file_in_sidebar(const char *filepath);
 void show_welcome_screen();
+void show_empty_state();
 void show_editor_view();
 void save_recent_folder(const char *path);
 GList* get_recent_folders();
