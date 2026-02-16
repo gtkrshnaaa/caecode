@@ -159,7 +159,7 @@ void init_editor() {
     new_dirs[count + 1] = g_strdup("/usr/share/caecode/languages");
     new_dirs[count + 2] = NULL;
     
-    gtk_source_language_manager_set_search_path(lm, (const gchar **)new_dirs);
+    gtk_source_language_manager_set_search_path(lm, new_dirs);
     
     g_strfreev(new_dirs);
     g_free(cwd_lang);
