@@ -149,7 +149,7 @@ static void on_file_loaded(GObject *src, GAsyncResult *res, gpointer user_data) 
     gtk_text_buffer_set_text(GTK_TEXT_BUFFER(text_buffer), contents, (gint)len);
     gtk_source_buffer_end_not_undoable_action(text_buffer);
 
-    if (last_saved_content) free(last_saved_content);
+    if (last_saved_content) g_free(last_saved_content);
     last_saved_content = g_strdup(contents);
 
     GtkSourceLanguageManager *lm = gtk_source_language_manager_get_default();
@@ -197,7 +197,7 @@ void save_file() {
     gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(text_buffer), &start, &end);
     char *text = gtk_text_buffer_get_text(GTK_TEXT_BUFFER(text_buffer), &start, &end, FALSE);
 
-    if (last_saved_content) free(last_saved_content);
+    if (last_saved_content) g_free(last_saved_content);
     last_saved_content = g_strdup(text);
 
     GFile *gf = g_file_new_for_path(current_file);
@@ -526,8 +526,12 @@ void close_folder() {
     // Reset current file state
     memset(current_file, 0, sizeof(current_file));
     if (last_saved_content) {
-        free(last_saved_content);
+        g_free(last_saved_content);
         last_saved_content = NULL;
+    }
+    if (current_file_row_ref) {
+        gtk_tree_row_reference_free(current_file_row_ref);
+        current_file_row_ref = NULL;
     }
 
     // Clear the editor content as well when folder is closed
@@ -652,42 +656,23 @@ void init_search_popup() {
 
 
 
-void mark_unsaved_file_recursive(GtkTreeModel *model, GtkTreeIter *iter, const char *filepath, gboolean unsaved) {
-    do {
-        char *path;
-        gtk_tree_model_get(model, iter, 1, &path, -1);
-
-        if (path && strcmp(path, filepath) == 0) {
+void mark_unsaved_file(const char *filepath, gboolean unsaved) {
+    if (current_file_row_ref && gtk_tree_row_reference_valid(current_file_row_ref)) {
+        GtkTreePath *path = gtk_tree_row_reference_get_path(current_file_row_ref);
+        GtkTreeIter iter;
+        GtkTreeModel *model = GTK_TREE_MODEL(tree_store);
+        
+        if (gtk_tree_model_get_iter(model, &iter, path)) {
             char *filename = g_path_get_basename(filepath);
             char display_name[1024];
 
             // Add '*' mark if the file is not saved.
             snprintf(display_name, sizeof(display_name), "%s%s", filename, unsaved ? " *" : "");
-            gtk_tree_store_set(GTK_TREE_STORE(model), iter, 0, display_name, -1);
+            gtk_tree_store_set(tree_store, &iter, 0, display_name, -1);
 
             g_free(filename);
-            g_free(path);
-            return; // File found, exiting function
         }
-
-        // Check if iter has children (for folders)
-        GtkTreeIter child_iter;
-        if (gtk_tree_model_iter_children(model, &child_iter, iter)) {
-            mark_unsaved_file_recursive(model, &child_iter, filepath, unsaved);
-        }
-
-        g_free(path);
-    } while (gtk_tree_model_iter_next(model, iter)); // Continue to the next node
-}
-
-
-
-void mark_unsaved_file(const char *filepath, gboolean unsaved) {
-    GtkTreeModel *model = GTK_TREE_MODEL(tree_store);
-    GtkTreeIter iter;
-
-    if (gtk_tree_model_get_iter_first(model, &iter)) {
-        mark_unsaved_file_recursive(model, &iter, filepath, unsaved);
+        gtk_tree_path_free(path);
     }
 }
 
@@ -824,7 +809,10 @@ int main(int argc, char **argv) {
     gtk_main();
 
     if (last_saved_content) {
-        free(last_saved_content);
+        g_free(last_saved_content);
+    }
+    if (current_file_row_ref) {
+        gtk_tree_row_reference_free(current_file_row_ref);
     }
 
     return 0;
