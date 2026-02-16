@@ -2,6 +2,15 @@
 #include <string.h>
 #include "sidebar.h"
 #include "ui.h"
+#include "file_ops.h"
+
+static guint autosave_timeout_id = 0;
+
+static gboolean on_autosave_timer(gpointer data) {
+    autosave_timeout_id = 0;
+    save_file();
+    return FALSE;
+}
 
 static GdkPixbuf *create_color_bar_pixbuf(const char *color_str) {
     GdkRGBA rgba;
@@ -334,4 +343,8 @@ void on_text_changed(GtkTextBuffer *buffer, gpointer user_data) {
     // Debounced gutter update
     if (gutter_timeout_id > 0) g_source_remove(gutter_timeout_id);
     gutter_timeout_id = g_timeout_add(300, debounced_gutter_update, NULL);
+
+    // Debounced AutoSave (1 second)
+    if (autosave_timeout_id > 0) g_source_remove(autosave_timeout_id);
+    autosave_timeout_id = g_timeout_add(1000, on_autosave_timer, NULL);
 }
