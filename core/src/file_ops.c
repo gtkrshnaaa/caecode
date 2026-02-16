@@ -1,5 +1,11 @@
 #include "file_ops.h"
 #include <string.h>
+#include <sys/stat.h>
+
+typedef struct {
+    char *path;
+    char *content;
+} SaveCtx;
 
 static void on_file_loaded(GObject *src, GAsyncResult *res, gpointer user_data) {
     LoadCtx *ctx = (LoadCtx *)user_data;
@@ -65,17 +71,31 @@ void load_file_async(const char *filepath) {
 }
 
 static void on_file_saved(GObject *src, GAsyncResult *res, gpointer user_data) {
+    SaveCtx *ctx = (SaveCtx *)user_data;
     GError *err = NULL;
     if (!g_file_replace_contents_finish(G_FILE(src), res, NULL, &err)) {
         if (err) {
             set_status_message(err->message);
             g_error_free(err);
         }
+        g_free(ctx->path);
+        g_free(ctx->content);
+        g_free(ctx);
         return;
     }
     set_status_message("File saved successfully");
-    mark_unsaved_file(current_file, FALSE);
-    update_status_with_unsaved_mark(TRUE);
+    
+    // Use the path from the context to ensure the correct file is marked
+    mark_unsaved_file(ctx->path, FALSE);
+    
+    // Only update status if the saved file is the currently active one
+    if (strcmp(ctx->path, current_file) == 0) {
+        update_status_with_unsaved_mark(TRUE);
+    }
+
+    g_free(ctx->path);
+    g_free(ctx->content);
+    g_free(ctx);
 }
 
 void save_file() {
@@ -89,14 +109,16 @@ void save_file() {
     last_saved_content = g_strdup(text);
     gtk_text_buffer_set_modified(GTK_TEXT_BUFFER(text_buffer), FALSE);
 
-    GFile *gf = g_file_new_for_path(current_file);
-    g_file_replace_contents_async(gf,
-        text, strlen(text),
-        NULL, FALSE, G_FILE_CREATE_NONE,
-        NULL, on_file_saved, NULL);
-    g_object_unref(gf);
+    SaveCtx *ctx = g_new0(SaveCtx, 1);
+    ctx->path = g_strdup(current_file);
+    ctx->content = text; // Take ownership of the text buffer string
 
-    g_free(text);
+    GFile *gf = g_file_new_for_path(ctx->path);
+    g_file_replace_contents_async(gf,
+        ctx->content, strlen(ctx->content),
+        NULL, FALSE, G_FILE_CREATE_NONE,
+        NULL, on_file_saved, ctx);
+    g_object_unref(gf);
 }
 
 void save_file_as() {
