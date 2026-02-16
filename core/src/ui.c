@@ -369,6 +369,15 @@ static GtkWidget* create_empty_state() {
     return box;
 }
 
+static void on_bottom_panel_size_allocate(GtkWidget *widget, GdkRectangle *allocation, gpointer user_data) {
+    GtkPaned *paned = GTK_PANED(user_data);
+    int total_width = allocation->width;
+    // Lock the list (right side) to 15% of total width.
+    // So the handle position (left side width) should be 85%.
+    int position = (int)(total_width * 0.85);
+    gtk_paned_set_position(paned, position);
+}
+
 static void on_terminal_list_row_selected(GtkListBox *list, GtkListBoxRow *row, gpointer user_data) {
     if (!row) return;
     const char *name = g_object_get_data(G_OBJECT(row), "terminal-name");
@@ -424,7 +433,9 @@ static GtkWidget* create_bottom_panel() {
     gtk_container_add(GTK_CONTAINER(list_scrolled), terminal_list);
     
     gtk_paned_pack2(GTK_PANED(h_paned), list_scrolled, FALSE, FALSE);
-    gtk_paned_set_position(GTK_PANED(h_paned), 800); 
+    
+    // Lock to 15% width dynamically
+    g_signal_connect(h_paned, "size-allocate", G_CALLBACK(on_bottom_panel_size_allocate), h_paned);
 
     gtk_box_pack_start(GTK_BOX(vbox), h_paned, TRUE, TRUE, 0);
     
