@@ -170,8 +170,17 @@ static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColu
         gtk_tree_model_get(model, &iter, 2, &filepath, -1);
         
         struct stat st;
-        if (stat(filepath, &st) == 0 && S_ISREG(st.st_mode)) {
-            load_file_async(filepath);
+        if (stat(filepath, &st) == 0) {
+            if (S_ISDIR(st.st_mode)) {
+                // Toggle expansion for folders on single click
+                if (gtk_tree_view_row_expanded(tv, path)) {
+                    gtk_tree_view_collapse_row(tv, path);
+                } else {
+                    gtk_tree_view_expand_row(tv, path, FALSE);
+                }
+            } else if (S_ISREG(st.st_mode)) {
+                load_file_async(filepath);
+            }
         }
         g_free(filepath);
     }
@@ -181,6 +190,9 @@ void init_sidebar() {
     tree_store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
     tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(tree_store));
     
+    // Enable single-click activation
+    gtk_tree_view_set_activate_on_single_click(GTK_TREE_VIEW(tree_view), TRUE);
+
     GtkTreeViewColumn *column = gtk_tree_view_column_new();
     gtk_tree_view_column_set_title(column, "Files");
 
