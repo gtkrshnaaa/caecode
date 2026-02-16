@@ -17,6 +17,8 @@ typedef struct {
 } PopulateContext;
 
 static PopulateContext *populate_ctx = NULL;
+static GFileMonitor *folder_monitor = NULL;
+static guint refresh_timeout_id = 0;
 
 static void stop_population_if_running() {
     if (populate_ctx) {
@@ -121,6 +123,24 @@ static gboolean populate_step(gpointer data) {
     return TRUE;
 }
 
+static gboolean debounced_refresh(gpointer data) {
+    refresh_timeout_id = 0;
+    reload_sidebar();
+    return FALSE;
+}
+
+static void on_folder_changed(GFileMonitor *monitor, GFile *file, GFile *other_file, GFileMonitorEvent event_type, gpointer user_data) {
+    if (event_type == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT || 
+        event_type == G_FILE_MONITOR_EVENT_CREATED || 
+        event_type == G_FILE_MONITOR_EVENT_DELETED ||
+        event_type == G_FILE_MONITOR_EVENT_RENAMED ||
+        event_type == G_FILE_MONITOR_EVENT_MOVED) {
+        
+        if (refresh_timeout_id > 0) g_source_remove(refresh_timeout_id);
+        refresh_timeout_id = g_timeout_add(500, debounced_refresh, NULL);
+    }
+}
+
 void open_folder(const char *path) {
     stop_population_if_running();
     gtk_tree_store_clear(tree_store);
@@ -138,6 +158,16 @@ void open_folder(const char *path) {
 
     populate_ctx->source_id = g_idle_add(populate_step, NULL);
 
+    // Setup file monitor
+    if (folder_monitor) {
+        g_file_monitor_cancel(folder_monitor);
+        g_object_unref(folder_monitor);
+    }
+    GFile *gf = g_file_new_for_path(path);
+    folder_monitor = g_file_monitor_directory(gf, G_FILE_MONITOR_NONE, NULL, NULL);
+    g_signal_connect(folder_monitor, "changed", G_CALLBACK(on_folder_changed), NULL);
+    g_object_unref(gf);
+
     save_recent_folder(path);
     show_editor_view(); // Will show empty state as current_file is empty
 }
@@ -152,6 +182,17 @@ void close_folder() {
         gtk_tree_row_reference_free(current_file_row_ref);
         current_file_row_ref = NULL;
     }
+
+    if (folder_monitor) {
+        g_file_monitor_cancel(folder_monitor);
+        g_object_unref(folder_monitor);
+        folder_monitor = NULL;
+    }
+    if (refresh_timeout_id > 0) {
+        g_source_remove(refresh_timeout_id);
+        refresh_timeout_id = 0;
+    }
+
     show_welcome_screen();
 }
 
