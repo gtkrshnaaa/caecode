@@ -34,8 +34,12 @@ builddeb: $(BIN_TARGET)
 	@mkdir -p $(PKG_ROOT)/usr/bin
 	@mkdir -p $(PKG_ROOT)/usr/share/applications
 	@mkdir -p $(PKG_ROOT)/usr/share/icons/hicolor/256x256/apps
+	@mkdir -p $(PKG_ROOT)/usr/share/caecode/themes
 	@cp $(BIN_TARGET) $(PKG_ROOT)/usr/bin/caecode
 	@chmod 755 $(PKG_ROOT)/usr/bin/caecode
+	# Install themes
+	@cp assets/themes/*.xml $(PKG_ROOT)/usr/share/caecode/themes/
+	@chmod 644 $(PKG_ROOT)/usr/share/caecode/themes/*.xml
 	# Install desktop icon
 	@cp assets/logo/caecode.png $(PKG_ROOT)/usr/share/icons/hicolor/256x256/apps/caecode.png
 	@chmod 644 $(PKG_ROOT)/usr/share/icons/hicolor/256x256/apps/caecode.png
@@ -55,14 +59,15 @@ builddeb: $(BIN_TARGET)
 	@echo "Created $(DEB_FILE)"
 
 # Install the generated .deb package
-install: builddeb
+install: clean builddeb
 	@echo "Installing $(DEB_FILE) (may require sudo password)..."
 	sudo dpkg -i $(DEB_FILE) || sudo apt -f install -y
 
 # Uninstall the installed package
 uninstall:
 	@echo "Uninstalling caecode (may require sudo password)..."
-	@sudo dpkg -r caecode || { echo "Package 'caecode' may not be installed or removal failed."; exit 0; }
+	@sudo dpkg -r caecode || { echo "Package 'caecode' may not be installed or removal failed."; }
+	@sudo rm -rf /usr/share/caecode
 
 clean:
 	rm -rf $(BIN_DIR) $(BUILD_DIR)
