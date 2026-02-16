@@ -38,7 +38,7 @@ static PopulateContext *populate_ctx = NULL;
 // --- Forward declarations ---
 void set_status_message(const char *message);
 void update_status_with_relative_path();
-void update_status_with_unsaved_mark();
+void update_status_with_unsaved_mark(gboolean is_same);
 void mark_unsaved_file(const char *filepath, gboolean unsaved);
 void switch_theme();
 void select_file_in_sidebar_recursive(GtkTreeModel *model, GtkTreeIter *iter, const char *filepath);
@@ -187,7 +187,7 @@ static void on_file_saved(GObject *src, GAsyncResult *res, gpointer user_data) {
     }
     // success
     mark_unsaved_file(current_file, FALSE);
-    update_status_with_unsaved_mark();
+    update_status_with_unsaved_mark(TRUE);
 }
 
 void save_file() {
@@ -236,7 +236,7 @@ void update_status_with_relative_path() {
 }
 
 
-void update_status_with_unsaved_mark() {
+void update_status_with_unsaved_mark(gboolean is_same) {
     if (strlen(current_file) == 0) {
         set_status_message("No file opened");
         return;
@@ -254,14 +254,6 @@ void update_status_with_unsaved_mark() {
     } else {
         snprintf(relative_path, sizeof(relative_path), "%s", current_file);
     }
-
-    // Check if there are any changes to the currently opened file.
-    GtkTextIter start, end;
-    gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(text_buffer), &start, &end);
-    char *current_text = gtk_text_buffer_get_text(GTK_TEXT_BUFFER(text_buffer), &start, &end, FALSE);
-
-    gboolean is_same = (last_saved_content && strcmp(current_text, last_saved_content) == 0);
-    g_free(current_text);
 
     // Add '*' mark if the file is not saved yet.
     char display_path[1050]; // Buffer for relative path + " *"
@@ -682,15 +674,20 @@ void on_text_changed(GtkTextBuffer *buffer, gpointer user_data) {
     if (strlen(current_file) > 0 && last_saved_content) {
         GtkTextIter start, end;
         gtk_text_buffer_get_bounds(buffer, &start, &end);
-        char *current_text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+        
+        // Fast path: compare lengths first
+        gint current_len = gtk_text_iter_get_offset(&end);
+        gint saved_len = strlen(last_saved_content);
+        
+        gboolean is_same = FALSE;
+        if (current_len == saved_len) {
+            char *current_text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+            is_same = (strcmp(current_text, last_saved_content) == 0);
+            g_free(current_text);
+        }
 
-        // Compare the current text with the last saved snapshot.
-        gboolean is_same = strcmp(current_text, last_saved_content) == 0;
-
-        mark_unsaved_file(current_file, !is_same); // Remove mark if same
-        update_status_with_unsaved_mark(); // Update status bar with unsaved mark
-
-        g_free(current_text);
+        mark_unsaved_file(current_file, !is_same); 
+        update_status_with_unsaved_mark(is_same); 
     }
 }
 
