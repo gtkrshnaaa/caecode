@@ -3,21 +3,21 @@
   <author>antigravity</author>
   <_description>Monochrome dark theme for Caecode</_description>
 
-  <!-- Monochrome Palette -->
-  <color name="bg"        value="#121212"/>
+  <!-- GNOME Adwaita Palette -->
+  <color name="bg"        value="#1e1e1e"/>
   <color name="fg"        value="#E0E0E0"/>
   <color name="grey"      value="#808080"/>
   <color name="lightgrey" value="#D3D3D3"/>
   <color name="white"     value="#FFFFFF"/>
   <color name="darkgrey"  value="#404040"/>
-  <color name="selection" value="#333333"/>
+  <color name="selection" value="#2a2a2a"/>
 
   <!-- Global Settings -->
   <style name="text"                        foreground="fg" background="bg"/>
   <style name="selection"                   background="selection"/>
   <style name="cursor"                      foreground="white"/>
-  <style name="current-line"                background="#1A1A1A"/>
-  <style name="line-numbers"                foreground="darkgrey" background="#0C0C0C"/>
+  <style name="current-line"                background="#252525"/>
+  <style name="line-numbers"                foreground="darkgrey" background="#181818"/>
 
   <!-- Comments -->
   <style name="def:comment"                 foreground="darkgrey"/>

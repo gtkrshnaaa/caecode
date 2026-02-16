@@ -50,10 +50,10 @@ void switch_theme() {
     if (scheme) {
         gtk_source_buffer_set_style_scheme(text_buffer, scheme);
         
-        // Unify UI colors based on the selected theme
-        const char *bg_color = (current_theme == 0) ? "#121212" : "#FFFFFF";
+        // Unify UI colors based on the selected theme (GNOME Adwaita palette)
+        const char *bg_color = (current_theme == 0) ? "#1e1e1e" : "#FFFFFF";
         const char *fg_color = (current_theme == 0) ? "#E0E0E0" : "#333333";
-        const char *line_num_bg = (current_theme == 0) ? "#0C0C0C" : "#FAFAFA";
+        const char *line_num_bg = (current_theme == 0) ? "#181818" : "#FAFAFA";
         
         char *css_data = g_strdup_printf(
             "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar { background-color: %s; color: %s; }"
