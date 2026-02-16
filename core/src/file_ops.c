@@ -1,6 +1,9 @@
 #include "file_ops.h"
 #include <string.h>
 #include <sys/stat.h>
+#include "sidebar.h"
+#include "editor.h"
+#include "ui.h"
 
 typedef struct {
     char *path;

@@ -1,5 +1,20 @@
 #include "editor.h"
 #include <string.h>
+#include "sidebar.h"
+#include "ui.h"
+
+static GdkPixbuf *create_color_bar_pixbuf(const char *color_str) {
+    GdkRGBA rgba;
+    gdk_rgba_parse(&rgba, color_str);
+    GdkPixbuf *pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8, 3, 24);
+    // Fill with RBGA: R << 24 | G << 16 | B << 8 | A
+    guint32 pixel = ((guint8)(rgba.red * 255) << 24) |
+                    ((guint8)(rgba.green * 255) << 16) |
+                    ((guint8)(rgba.blue * 255) << 8) |
+                    ((guint8)(rgba.alpha * 255));
+    gdk_pixbuf_fill(pixbuf, pixel);
+    return pixbuf;
+}
 
 void update_git_gutter() {
     if (strlen(current_file) == 0 || strlen(current_folder) == 0) return;
@@ -198,19 +213,23 @@ void init_editor() {
     
     // Configure gutter for git marks
     gtk_source_view_set_show_line_marks(source_view, TRUE);
+    
     GtkSourceMarkAttributes *added_attr = gtk_source_mark_attributes_new();
-    GdkRGBA green; gdk_rgba_parse(&green, "#73C991");
-    gtk_source_mark_attributes_set_background(added_attr, &green);
+    GdkPixbuf *added_pb = create_color_bar_pixbuf("#73C991");
+    gtk_source_mark_attributes_set_pixbuf(added_attr, added_pb);
+    g_object_unref(added_pb);
     gtk_source_view_set_mark_attributes(source_view, "git-added", added_attr, 0);
 
     GtkSourceMarkAttributes *modified_attr = gtk_source_mark_attributes_new();
-    GdkRGBA blue; gdk_rgba_parse(&blue, "#3584e4");
-    gtk_source_mark_attributes_set_background(modified_attr, &blue);
+    GdkPixbuf *mod_pb = create_color_bar_pixbuf("#3584e4");
+    gtk_source_mark_attributes_set_pixbuf(modified_attr, mod_pb);
+    g_object_unref(mod_pb);
     gtk_source_view_set_mark_attributes(source_view, "git-modified", modified_attr, 0);
 
     GtkSourceMarkAttributes *deleted_attr = gtk_source_mark_attributes_new();
-    GdkRGBA red; gdk_rgba_parse(&red, "#F85149");
-    gtk_source_mark_attributes_set_background(deleted_attr, &red);
+    GdkPixbuf *del_pb = create_color_bar_pixbuf("#F85149");
+    gtk_source_mark_attributes_set_pixbuf(deleted_attr, del_pb);
+    g_object_unref(del_pb);
     gtk_source_view_set_mark_attributes(source_view, "git-deleted", deleted_attr, 0);
     
     // Add local themes path (development)
@@ -282,6 +301,9 @@ void on_text_changed(GtkTextBuffer *buffer, gpointer user_data) {
 
     mark_unsaved_file(current_file, modified); 
     update_status_with_unsaved_mark(!modified); 
+
+    // Real-time Git Status update (Sidebar coloring)
+    update_git_status();
 
     // Debounced gutter update
     if (gutter_timeout_id > 0) g_source_remove(gutter_timeout_id);
