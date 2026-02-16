@@ -558,7 +558,7 @@ void create_main_window() {
     GtkWidget *sidebar_title = gtk_label_new("EXPLORER");
     gtk_widget_set_name(sidebar_title, "sidebar-title");
     gtk_label_set_xalign(GTK_LABEL(sidebar_title), 0.0);
-    gtk_widget_set_margin_start(sidebar_title, 15);
+    gtk_widget_set_margin_start(sidebar_title, 20);
     gtk_box_pack_start(GTK_BOX(sidebar_header), sidebar_title, TRUE, TRUE, 0);
     
     GtkWidget *btn_collapse = gtk_button_new_from_icon_name("view-restore-symbolic", GTK_ICON_SIZE_MENU);
@@ -601,7 +601,7 @@ void create_main_window() {
     
     GtkWidget *path_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_name(path_bar, "path-bar");
-    gtk_widget_set_size_request(path_bar, -1, 30);
+    gtk_widget_set_size_request(path_bar, -1, 35);
     
     path_label = gtk_label_new("");
     gtk_widget_set_name(path_label, "path-label");
