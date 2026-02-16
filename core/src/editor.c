@@ -1,7 +1,108 @@
 #include "editor.h"
 #include <string.h>
+#include "sidebar.h"
+#include "ui.h"
+#include "file_ops.h"
+
+static guint autosave_timeout_id = 0;
+
+static gboolean on_autosave_timer(gpointer data) {
+    autosave_timeout_id = 0;
+    save_file();
+    return FALSE;
+}
+
+static GdkPixbuf *create_color_bar_pixbuf(const char *color_str) {
+    GdkRGBA rgba;
+    gdk_rgba_parse(&rgba, color_str);
+    GdkPixbuf *pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8, 3, 24);
+    // Fill with RBGA: R << 24 | G << 16 | B << 8 | A
+    guint32 pixel = ((guint8)(rgba.red * 255) << 24) |
+                    ((guint8)(rgba.green * 255) << 16) |
+                    ((guint8)(rgba.blue * 255) << 8) |
+                    ((guint8)(rgba.alpha * 255));
+    gdk_pixbuf_fill(pixbuf, pixel);
+    return pixbuf;
+}
+
+void update_git_gutter() {
+    if (strlen(current_file) == 0 || strlen(current_folder) == 0) return;
+
+    // Clear existing git marks
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(GTK_TEXT_BUFFER(text_buffer), &start, &end);
+    gtk_source_buffer_remove_source_marks(text_buffer, &start, &end, "git-added");
+    gtk_source_buffer_remove_source_marks(text_buffer, &start, &end, "git-modified");
+    gtk_source_buffer_remove_source_marks(text_buffer, &start, &end, "git-deleted");
+
+    // Check if file is untracked first
+    char *status_cmd = g_strdup_printf("git -C \"%s\" status --porcelain -- \"%s\"", current_folder, current_file);
+    char *status_out = NULL;
+    gboolean is_untracked = FALSE;
+    if (g_spawn_command_line_sync(status_cmd, &status_out, NULL, NULL, NULL)) {
+        if (status_out && g_str_has_prefix(status_out, "??")) {
+            is_untracked = TRUE;
+        }
+        g_free(status_out);
+    }
+    g_free(status_cmd);
+
+    if (is_untracked) {
+        // Mark all lines as added for untracked files
+        int line_count = gtk_text_buffer_get_line_count(GTK_TEXT_BUFFER(text_buffer));
+        for (int i = 0; i < line_count; i++) {
+            GtkTextIter iter;
+            gtk_text_buffer_get_iter_at_line(GTK_TEXT_BUFFER(text_buffer), &iter, i);
+            gtk_source_buffer_create_source_mark(text_buffer, NULL, "git-added", &iter);
+        }
+        return;
+    }
+
+    char *cmd = g_strdup_printf("git -C \"%s\" diff -U0 HEAD -- \"%s\"", current_folder, current_file);
+    char *output = NULL;
+    if (g_spawn_command_line_sync(cmd, &output, NULL, NULL, NULL)) {
+        char **lines = g_strsplit(output, "\n", -1);
+        for (int i = 0; lines[i]; i++) {
+            if (g_str_has_prefix(lines[i], "@@")) {
+                // Parse @@ -line,count +line,count @@
+                int old_line, old_count, new_line, new_count;
+                // Initialize counts because sscanf might only find lines
+                old_count = 1; new_count = 1; 
+
+                if (sscanf(lines[i], "@@ -%d,%d +%d,%d @@", &old_line, &old_count, &new_line, &new_count) >= 2 ||
+                    sscanf(lines[i], "@@ -%d +%d,%d @@", &old_line, &new_line, &new_count) >= 2 ||
+                    sscanf(lines[i], "@@ -%d,%d +%d @@", &old_line, &old_count, &new_line) >= 2 ||
+                    sscanf(lines[i], "@@ -%d +%d @@", &old_line, &new_line) >= 2) {
+                    
+                    const char *category = (old_count == 0) ? "git-added" : "git-modified";
+                    if (new_count == 0 && old_count > 0) category = "git-deleted";
+
+                    // GtkSourceView lines are 0-indexed for marks but 1-indexed in git diff
+                    int start_line = (new_line > 0) ? new_line - 1 : 0;
+                    int count = (new_count > 0) ? new_count : 1;
+
+                    for (int j = 0; j < count; j++) {
+                        GtkTextIter iter;
+                        gtk_text_buffer_get_iter_at_line(GTK_TEXT_BUFFER(text_buffer), &iter, start_line + j);
+                        gtk_source_buffer_create_source_mark(text_buffer, NULL, category, &iter);
+                    }
+                }
+            }
+        }
+        g_strfreev(lines);
+        g_free(output);
+    }
+    g_free(cmd);
+}
 
 static const char *themes[] = { "caecode-dark", "caecode-light" };
+static guint gutter_timeout_id = 0;
+
+static gboolean debounced_gutter_update(gpointer data) {
+    gutter_timeout_id = 0;
+    update_git_gutter();
+    return FALSE;
+}
 
 static gboolean is_system_dark_mode() {
     gboolean prefer_dark = FALSE;
@@ -145,6 +246,27 @@ void init_editor() {
     // Initial theme setup
     theme_manager = gtk_source_style_scheme_manager_get_default();
     
+    // Configure gutter for git marks
+    gtk_source_view_set_show_line_marks(source_view, TRUE);
+    
+    GtkSourceMarkAttributes *added_attr = gtk_source_mark_attributes_new();
+    GdkPixbuf *added_pb = create_color_bar_pixbuf("#73C991");
+    gtk_source_mark_attributes_set_pixbuf(added_attr, added_pb);
+    g_object_unref(added_pb);
+    gtk_source_view_set_mark_attributes(source_view, "git-added", added_attr, 0);
+
+    GtkSourceMarkAttributes *modified_attr = gtk_source_mark_attributes_new();
+    GdkPixbuf *mod_pb = create_color_bar_pixbuf("#3584e4");
+    gtk_source_mark_attributes_set_pixbuf(modified_attr, mod_pb);
+    g_object_unref(mod_pb);
+    gtk_source_view_set_mark_attributes(source_view, "git-modified", modified_attr, 0);
+
+    GtkSourceMarkAttributes *deleted_attr = gtk_source_mark_attributes_new();
+    GdkPixbuf *del_pb = create_color_bar_pixbuf("#F85149");
+    gtk_source_mark_attributes_set_pixbuf(deleted_attr, del_pb);
+    g_object_unref(del_pb);
+    gtk_source_view_set_mark_attributes(source_view, "git-deleted", deleted_attr, 0);
+    
     // Add local themes path (development)
     char *cwd = g_get_current_dir();
     char *local_theme_path = g_build_filename(cwd, "core", "themes", NULL);
@@ -214,4 +336,15 @@ void on_text_changed(GtkTextBuffer *buffer, gpointer user_data) {
 
     mark_unsaved_file(current_file, modified); 
     update_status_with_unsaved_mark(!modified); 
+
+    // Real-time Git Status update (Sidebar coloring)
+    update_git_status();
+
+    // Debounced gutter update
+    if (gutter_timeout_id > 0) g_source_remove(gutter_timeout_id);
+    gutter_timeout_id = g_timeout_add(300, debounced_gutter_update, NULL);
+
+    // Debounced AutoSave (1 second)
+    if (autosave_timeout_id > 0) g_source_remove(autosave_timeout_id);
+    autosave_timeout_id = g_timeout_add(1000, on_autosave_timer, NULL);
 }
