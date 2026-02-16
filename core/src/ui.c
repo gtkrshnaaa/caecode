@@ -167,6 +167,22 @@ void create_main_window() {
 
     // Editor
     init_editor();
+    
+    // Apply margins for better spacing
+    gtk_text_view_set_top_margin(GTK_TEXT_VIEW(source_view), 20);
+    gtk_text_view_set_bottom_margin(GTK_TEXT_VIEW(source_view), 20);
+    gtk_text_view_set_left_margin(GTK_TEXT_VIEW(source_view), 15);
+    gtk_text_view_set_right_margin(GTK_TEXT_VIEW(source_view), 15);
+
+    // Apply cleaner font via CSS
+    GtkCssProvider *css = gtk_css_provider_new();
+    gtk_css_provider_load_from_data(css,
+        "textview, textview text { font-family: 'Monospace'; font-size: 11pt; }",
+        -1, NULL);
+    GtkStyleContext *ctx = gtk_widget_get_style_context(GTK_WIDGET(source_view));
+    gtk_style_context_add_provider(ctx, GTK_STYLE_PROVIDER(css), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(css);
+
     GtkWidget *editor_scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(editor_scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(editor_scrolled_window), GTK_WIDGET(source_view));

@@ -10,6 +10,7 @@ void init_editor() {
     gtk_source_view_set_auto_indent(source_view, TRUE);
     gtk_source_view_set_tab_width(source_view, 4);
     gtk_source_view_set_insert_spaces_instead_of_tabs(source_view, TRUE);
+    gtk_source_view_set_smart_backspace(source_view, TRUE);
     gtk_source_view_set_highlight_current_line(source_view, TRUE);
 
     // Initial theme setup
