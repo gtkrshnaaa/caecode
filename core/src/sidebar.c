@@ -20,6 +20,65 @@ static PopulateContext *populate_ctx = NULL;
 static GFileMonitor *folder_monitor = NULL;
 static guint refresh_timeout_id = 0;
 
+static void update_tree_colors_recursive(GtkTreeModel *model, GtkTreeIter *iter, GHashTable *git_status) {
+    do {
+        char *path;
+        gtk_tree_model_get(model, iter, 2, &path, -1);
+        
+        const char *status = g_hash_table_lookup(git_status, path);
+        const char *color = NULL;
+
+        if (status) {
+            // Check for M (modified), A (added), ?? (untracked)
+            if (strstr(status, "M")) color = "#E2C08D"; // Yellow
+            else if (strstr(status, "A") || strstr(status, "?")) color = "#73C991"; // Green
+        }
+        
+        gtk_tree_store_set(GTK_TREE_STORE(model), iter, 3, color, -1);
+        
+        GtkTreeIter child;
+        if (gtk_tree_model_iter_children(model, &child, iter)) {
+            update_tree_colors_recursive(model, &child, git_status);
+        }
+        
+        g_free(path);
+    } while (gtk_tree_model_iter_next(model, iter));
+}
+
+void update_git_status() {
+    if (strlen(current_folder) == 0) return;
+
+    GHashTable *git_status = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+    char *cmd = g_strdup_printf("git -C \"%s\" status --porcelain -u", current_folder);
+    char *output = NULL;
+    if (g_spawn_command_line_sync(cmd, &output, NULL, NULL, NULL)) {
+        char **lines = g_strsplit(output, "\n", -1);
+        for (int i = 0; lines[i] && strlen(lines[i]) > 3; i++) {
+            char status[3];
+            strncpy(status, lines[i], 2);
+            status[2] = '\0';
+            
+            char *rel_path = lines[i] + 3;
+            // Handle cases where git status might return quoted paths for special chars
+            if (rel_path[0] == '"') {
+                // Simplified handle: just use as is for now or better parsing if needed
+            }
+            
+            char *abs_path = g_build_filename(current_folder, rel_path, NULL);
+            g_hash_table_insert(git_status, abs_path, g_strdup(status));
+        }
+        g_strfreev(lines);
+        g_free(output);
+    }
+    g_free(cmd);
+
+    GtkTreeIter iter;
+    if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(tree_store), &iter)) {
+        update_tree_colors_recursive(GTK_TREE_MODEL(tree_store), &iter, git_status);
+    }
+    g_hash_table_destroy(git_status);
+}
+
 static void stop_population_if_running() {
     if (populate_ctx) {
         populate_ctx->cancelled = TRUE;
@@ -40,7 +99,7 @@ static void stop_population_if_running() {
 
 static void add_to_tree(const char *path, const char *name, const char *icon_name, GtkTreeIter *parent, GtkTreeIter *iter) {
     gtk_tree_store_append(tree_store, iter, parent);
-    gtk_tree_store_set(tree_store, iter, 0, icon_name, 1, name, 2, path, -1);
+    gtk_tree_store_set(tree_store, iter, 0, icon_name, 1, name, 2, path, 3, NULL, -1);
 }
 
 static gboolean populate_step(gpointer data) {
@@ -169,6 +228,7 @@ void open_folder(const char *path) {
     g_object_unref(gf);
 
     save_recent_folder(path);
+    update_git_status();
     show_editor_view(); // Will show empty state as current_file is empty
 }
 
@@ -234,7 +294,7 @@ static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColu
 }
 
 void init_sidebar() {
-    tree_store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    tree_store = gtk_tree_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
     tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(tree_store));
     
     // Enable single-click activation
@@ -250,6 +310,7 @@ void init_sidebar() {
     GtkCellRenderer *text_renderer = gtk_cell_renderer_text_new();
     gtk_tree_view_column_pack_start(column, text_renderer, TRUE);
     gtk_tree_view_column_add_attribute(column, text_renderer, "text", 1);
+    gtk_tree_view_column_add_attribute(column, text_renderer, "foreground", 3);
 
     gtk_tree_view_append_column(GTK_TREE_VIEW(tree_view), column);
 

@@ -54,6 +54,8 @@ static void on_file_loaded(GObject *src, GAsyncResult *res, gpointer user_data) 
 
     mark_unsaved_file(ctx->path, FALSE);
     update_status_with_unsaved_mark(TRUE);
+    update_git_status();
+    update_git_gutter();
     show_editor_view();
 
     g_free(contents);
@@ -92,6 +94,7 @@ static void on_file_saved(GObject *src, GAsyncResult *res, gpointer user_data) {
     if (strcmp(ctx->path, current_file) == 0) {
         update_status_with_unsaved_mark(TRUE);
         update_path_bar();
+        update_git_status();
     }
 
     g_free(ctx->path);

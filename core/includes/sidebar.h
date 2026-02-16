@@ -8,5 +8,6 @@ void open_folder(const char *path);
 void reload_sidebar();
 void close_folder();
 void collapse_all_folders();
+void update_git_status();
 
 #endif // SIDEBAR_H
