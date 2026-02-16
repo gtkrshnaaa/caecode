@@ -19,6 +19,12 @@ typedef struct {
 static PopulateContext *populate_ctx = NULL;
 static GFileMonitor *folder_monitor = NULL;
 static guint refresh_timeout_id = 0;
+static guint git_poll_timeout_id = 0;
+
+static gboolean background_git_poll(gpointer data) {
+    update_git_status();
+    return TRUE; // Continue polling
+}
 
 static void update_tree_colors_recursive(GtkTreeModel *model, GtkTreeIter *iter, GHashTable *git_status) {
     do {
@@ -177,6 +183,7 @@ static gboolean populate_step(gpointer data) {
 
     if (g_queue_is_empty(populate_ctx->queue)) {
         populate_ctx->source_id = 0;
+        update_git_status(); // Trigger git update once the tree is fully built
         return FALSE;
     }
     return TRUE;
@@ -315,6 +322,11 @@ void init_sidebar() {
     gtk_tree_view_append_column(GTK_TREE_VIEW(tree_view), column);
 
     g_signal_connect(tree_view, "row-activated", G_CALLBACK(on_row_activated), NULL);
+
+    // Initial background git poll
+    if (git_poll_timeout_id == 0) {
+        git_poll_timeout_id = g_timeout_add_seconds(5, background_git_poll, NULL);
+    }
 }
 
 void select_file_in_sidebar_recursive(GtkTreeModel *model, GtkTreeIter *iter, const char *filepath) {
