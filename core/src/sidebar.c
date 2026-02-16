@@ -23,6 +23,7 @@ static guint git_poll_timeout_id = 0;
 
 static gboolean background_git_poll(gpointer data) {
     update_git_status();
+    update_git_gutter();
     return TRUE; // Continue polling
 }
 

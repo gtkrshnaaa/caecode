@@ -26,6 +26,29 @@ void update_git_gutter() {
     gtk_source_buffer_remove_source_marks(text_buffer, &start, &end, "git-modified");
     gtk_source_buffer_remove_source_marks(text_buffer, &start, &end, "git-deleted");
 
+    // Check if file is untracked first
+    char *status_cmd = g_strdup_printf("git -C \"%s\" status --porcelain -- \"%s\"", current_folder, current_file);
+    char *status_out = NULL;
+    gboolean is_untracked = FALSE;
+    if (g_spawn_command_line_sync(status_cmd, &status_out, NULL, NULL, NULL)) {
+        if (status_out && g_str_has_prefix(status_out, "??")) {
+            is_untracked = TRUE;
+        }
+        g_free(status_out);
+    }
+    g_free(status_cmd);
+
+    if (is_untracked) {
+        // Mark all lines as added for untracked files
+        int line_count = gtk_text_buffer_get_line_count(GTK_TEXT_BUFFER(text_buffer));
+        for (int i = 0; i < line_count; i++) {
+            GtkTextIter iter;
+            gtk_text_buffer_get_iter_at_line(GTK_TEXT_BUFFER(text_buffer), &iter, i);
+            gtk_source_buffer_create_source_mark(text_buffer, NULL, "git-added", &iter);
+        }
+        return;
+    }
+
     char *cmd = g_strdup_printf("git -C \"%s\" diff -U0 HEAD -- \"%s\"", current_folder, current_file);
     char *output = NULL;
     if (g_spawn_command_line_sync(cmd, &output, NULL, NULL, NULL)) {
@@ -34,10 +57,13 @@ void update_git_gutter() {
             if (g_str_has_prefix(lines[i], "@@")) {
                 // Parse @@ -line,count +line,count @@
                 int old_line, old_count, new_line, new_count;
-                if (sscanf(lines[i], "@@ -%d,%d +%d,%d @@", &old_line, &old_count, &new_line, &new_count) == 4 ||
-                    sscanf(lines[i], "@@ -%d +%d,%d @@", &old_line, &new_line, &new_count) == 3 ||
-                    sscanf(lines[i], "@@ -%d,%d +%d @@", &old_line, &old_count, &new_line) == 3 ||
-                    sscanf(lines[i], "@@ -%d +%d @@", &old_line, &new_line) == 2) {
+                // Initialize counts because sscanf might only find lines
+                old_count = 1; new_count = 1; 
+
+                if (sscanf(lines[i], "@@ -%d,%d +%d,%d @@", &old_line, &old_count, &new_line, &new_count) >= 2 ||
+                    sscanf(lines[i], "@@ -%d +%d,%d @@", &old_line, &new_line, &new_count) >= 2 ||
+                    sscanf(lines[i], "@@ -%d,%d +%d @@", &old_line, &old_count, &new_line) >= 2 ||
+                    sscanf(lines[i], "@@ -%d +%d @@", &old_line, &new_line) >= 2) {
                     
                     const char *category = (old_count == 0) ? "git-added" : "git-modified";
                     if (new_count == 0 && old_count > 0) category = "git-deleted";
