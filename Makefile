@@ -1,8 +1,8 @@
 # Makefile for Caecode with GtkSourceView
 
 CC = gcc
-CFLAGS = `pkg-config --cflags gtk+-3.0 gtksourceview-3.0 gio-2.0` -Icore/includes -Wno-deprecated-declarations
-LDFLAGS = `pkg-config --libs gtk+-3.0 gtksourceview-3.0 gio-2.0`
+CFLAGS = `pkg-config --cflags gtk+-3.0 gtksourceview-3.0 gio-2.0 vte-2.91` -Icore/includes -Wno-deprecated-declarations
+LDFLAGS = `pkg-config --libs gtk+-3.0 gtksourceview-3.0 gio-2.0 vte-2.91`
 TARGET = caecode
 SRC = $(wildcard core/src/*.c)
 
@@ -53,7 +53,7 @@ builddeb: $(BIN_TARGET)
 	@printf "Type=Application\n" >> $(PKG_ROOT)/usr/share/applications/caecode.desktop
 	@printf "Categories=Development;IDE;Utility;\n" >> $(PKG_ROOT)/usr/share/applications/caecode.desktop
 	@chmod 644 $(PKG_ROOT)/usr/share/applications/caecode.desktop
-	@printf "Package: caecode\nVersion: $(VERSION)\nSection: editors\nPriority: optional\nArchitecture: $(ARCH)\nMaintainer: Unknown <unknown@example.com>\nDepends: libgtk-3-0, libgtksourceview-3.0-1\nDescription: Caecode - lightweight code editor using GTK and GtkSourceView\n" > $(PKG_ROOT)/DEBIAN/control
+	@printf "Package: caecode\nVersion: $(VERSION)\nSection: editors\nPriority: optional\nArchitecture: $(ARCH)\nMaintainer: Unknown <unknown@example.com>\nDepends: libgtk-3-0, libgtksourceview-3.0-1, libvte-2.91-0\nDescription: Caecode - lightweight code editor using GTK and GtkSourceView\n" > $(PKG_ROOT)/DEBIAN/control
 	@mkdir -p $(BUILD_DIR)
 	dpkg-deb --build $(PKG_ROOT) $(DEB_FILE)
 	@echo "Created $(DEB_FILE)"

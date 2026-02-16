@@ -3,6 +3,7 @@
 
 #include <gtk/gtk.h>
 #include <gtksourceview/gtksource.h>
+#include <vte/vte.h>
 
 // Version and Constants
 #define VERSION "0.0.6"
@@ -23,6 +24,7 @@ extern GtkWidget *editor_stack;
 extern GtkWidget *welcome_screen;
 extern GtkWidget *bottom_panel;
 extern GtkWidget *chat_panel;
+extern GtkWidget *terminal_notebook;
 
 // Global State
 extern char current_file[1024];
@@ -53,5 +55,6 @@ void show_welcome_screen();
 void show_editor_view();
 void save_recent_folder(const char *path);
 GList* get_recent_folders();
+void create_new_terminal();
 
 #endif // APP_STATE_H

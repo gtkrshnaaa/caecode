@@ -69,6 +69,37 @@ void switch_theme() {
         gtk_css_provider_load_from_data(app_css_provider, css_data, -1, NULL);
         g_free(css_data);
 
+        // Update Terminal colors
+        GdkRGBA bg_rgba, fg_rgba;
+        gdk_rgba_parse(&bg_rgba, bg_color);
+        gdk_rgba_parse(&fg_rgba, fg_color);
+
+        int n_pages = gtk_notebook_get_n_pages(GTK_NOTEBOOK(terminal_notebook));
+        for (int i = 0; i < n_pages; i++) {
+            GtkWidget *page = gtk_notebook_get_nth_page(GTK_NOTEBOOK(terminal_notebook), i);
+            if (GTK_IS_SCROLLED_WINDOW(page)) {
+                GtkWidget *terminal = gtk_bin_get_child(GTK_BIN(page));
+                if (VTE_IS_TERMINAL(terminal)) {
+                    vte_terminal_set_colors(VTE_TERMINAL(terminal), &fg_rgba, &bg_rgba, NULL, 0);
+                }
+            }
+        }
+
+        // Additional terminal-specific CSS
+        char *term_css = g_strdup_printf(
+            ".terminal-toolbar { background-color: %s; border-bottom: 1px solid %s; }"
+            "notebook stack { background-color: %s; }",
+            (current_theme == 0) ? "#252525" : "#F3F3F3",
+            (current_theme == 0) ? "#333333" : "#DDDDDD",
+            bg_color
+        );
+        GtkStyleContext *nb_ctx = gtk_widget_get_style_context(terminal_notebook);
+        GtkCssProvider *nb_provider = gtk_css_provider_new();
+        gtk_css_provider_load_from_data(nb_provider, term_css, -1, NULL);
+        gtk_style_context_add_provider(nb_ctx, GTK_STYLE_PROVIDER(nb_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+        g_object_unref(nb_provider);
+        g_free(term_css);
+
         set_status_message(g_strdup_printf("Theme switched to: %s", themes[current_theme]));
     }
 }

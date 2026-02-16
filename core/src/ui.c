@@ -21,6 +21,7 @@ GtkWidget *editor_stack;
 GtkWidget *welcome_screen;
 GtkWidget *bottom_panel;
 GtkWidget *chat_panel;
+GtkWidget *terminal_notebook;
 
 char current_file[1024] = "";
 char current_folder[1024] = "";
@@ -223,15 +224,76 @@ static GtkWidget* create_welcome_screen() {
 }
 
 static GtkWidget* create_bottom_panel() {
-    GtkWidget *panel = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_widget_set_name(panel, "bottom-panel");
-    gtk_widget_set_size_request(panel, -1, 150);
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_name(vbox, "bottom-panel");
+    gtk_widget_set_size_request(vbox, -1, 200);
+
+    // Toolbar for terminal actions
+    GtkWidget *toolbar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_style_context_add_class(gtk_widget_get_style_context(toolbar), "terminal-toolbar");
     
-    GtkWidget *label = gtk_label_new("Terminal & Panel Area");
-    gtk_style_context_add_class(gtk_widget_get_style_context(label), "dim-label");
-    gtk_box_pack_start(GTK_BOX(panel), label, TRUE, TRUE, 0);
+    GtkWidget *label = gtk_label_new(" TERMINAL ");
+    gtk_box_pack_start(GTK_BOX(toolbar), label, FALSE, FALSE, 5);
     
-    return panel;
+    GtkWidget *btn_new = gtk_button_new_from_icon_name("list-add-symbolic", GTK_ICON_SIZE_MENU);
+    gtk_button_set_relief(GTK_BUTTON(btn_new), GTK_RELIEF_NONE);
+    g_signal_connect(btn_new, "clicked", G_CALLBACK(create_new_terminal), NULL);
+    gtk_box_pack_start(GTK_BOX(toolbar), btn_new, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
+
+    terminal_notebook = gtk_notebook_new();
+    gtk_notebook_set_tab_pos(GTK_NOTEBOOK(terminal_notebook), GTK_POS_TOP);
+    gtk_notebook_set_scrollable(GTK_NOTEBOOK(terminal_notebook), TRUE);
+    gtk_notebook_set_show_border(GTK_NOTEBOOK(terminal_notebook), FALSE);
+    
+    gtk_box_pack_start(GTK_BOX(vbox), terminal_notebook, TRUE, TRUE, 0);
+    
+    return vbox;
+}
+
+void create_new_terminal() {
+    GtkWidget *terminal = vte_terminal_new();
+    gtk_widget_set_name(terminal, "vte-terminal");
+    
+    // Set some defaults for the terminal
+    vte_terminal_set_scrollback_lines(VTE_TERMINAL(terminal), 10000);
+    vte_terminal_set_cursor_blink_mode(VTE_TERMINAL(terminal), VTE_CURSOR_BLINK_ON);
+    
+    char **envp = g_get_environ();
+    char **command = (char *[]){ "/bin/bash", NULL };
+    
+    vte_terminal_spawn_async(VTE_TERMINAL(terminal),
+        VTE_PTY_DEFAULT,
+        NULL,
+        command,
+        envp,
+        G_SPAWN_SEARCH_PATH,
+        NULL, NULL, NULL,
+        -1, NULL, NULL, NULL);
+        
+    g_strfreev(envp);
+
+    GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+    gtk_container_add(GTK_CONTAINER(scrolled_window), terminal);
+    
+    GtkWidget *tab_label = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(tab_label), gtk_label_new("bash"), TRUE, TRUE, 0);
+    GtkWidget *btn_close = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
+    gtk_button_set_relief(GTK_BUTTON(btn_close), GTK_RELIEF_NONE);
+    gtk_box_pack_start(GTK_BOX(tab_label), btn_close, FALSE, FALSE, 0);
+    gtk_widget_show_all(tab_label);
+
+    int index = gtk_notebook_append_page(GTK_NOTEBOOK(terminal_notebook), scrolled_window, tab_label);
+    gtk_widget_show_all(scrolled_window);
+    gtk_notebook_set_current_page(GTK_NOTEBOOK(terminal_notebook), index);
+    
+    // Close terminal logic
+    g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), scrolled_window);
+    g_signal_connect(terminal, "child-exited", G_CALLBACK(gtk_widget_destroy), scrolled_window);
+    
+    // Set theme colors if possible (needs current theme knowledge)
+    // For now, it will use default, but editor.c will update it.
 }
 
 static GtkWidget* create_chat_panel() {
@@ -239,7 +301,7 @@ static GtkWidget* create_chat_panel() {
     gtk_widget_set_name(panel, "chat-panel");
     gtk_widget_set_size_request(panel, 300, -1);
     
-    GtkWidget *label = gtk_label_new("Antigravity Chat");
+    GtkWidget *label = gtk_label_new("AI Conversation");
     gtk_style_context_add_class(gtk_widget_get_style_context(label), "dim-label");
     gtk_box_pack_start(GTK_BOX(panel), label, TRUE, TRUE, 0);
     
@@ -313,7 +375,10 @@ void create_main_window() {
     gtk_paned_set_position(GTK_PANED(main_h_paned), 750);
 
     if (strlen(current_folder) == 0) show_welcome_screen(); 
-    else show_editor_view();
+    else {
+        show_editor_view();
+        create_new_terminal(); // Auto-open one terminal if folder opened
+    }
 
 
     // Status bar
