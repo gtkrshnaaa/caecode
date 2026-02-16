@@ -53,7 +53,7 @@ void switch_theme() {
         // Unify UI colors based on the selected theme (GNOME Adwaita palette)
         const char *bg_color = (current_theme == 0) ? "#1e1e1e" : "#FFFFFF";
         const char *fg_color = (current_theme == 0) ? "#E0E0E0" : "#333333";
-        const char *line_num_bg = (current_theme == 0) ? "#181818" : "#FAFAFA";
+        const char *line_num_bg = (current_theme == 0) ? "#1e1e1e" : "#FFFFFF";
         
         char *css_data = g_strdup_printf(
             "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar { background-color: %s; color: %s; }"

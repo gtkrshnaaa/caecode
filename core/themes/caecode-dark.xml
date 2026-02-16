@@ -17,7 +17,7 @@
   <style name="selection"                   background="selection"/>
   <style name="cursor"                      foreground="white"/>
   <style name="current-line"                background="#252525"/>
-  <style name="line-numbers"                foreground="darkgrey" background="#181818"/>
+  <style name="line-numbers"                foreground="darkgrey" background="#1e1e1e"/>
 
   <!-- Comments -->
   <style name="def:comment"                 foreground="darkgrey"/>
