@@ -91,6 +91,7 @@ static void on_file_saved(GObject *src, GAsyncResult *res, gpointer user_data) {
     // Only update status if the saved file is the currently active one
     if (strcmp(ctx->path, current_file) == 0) {
         update_status_with_unsaved_mark(TRUE);
+        update_path_bar();
     }
 
     g_free(ctx->path);

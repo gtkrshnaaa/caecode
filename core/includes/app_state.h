@@ -27,6 +27,7 @@ extern GtkWidget *chat_panel;
 extern GtkWidget *terminal_stack;
 extern GtkWidget *terminal_list;
 extern GtkWidget *empty_state;
+extern GtkWidget *path_label;
 
 // Global State
 extern int current_theme_idx;

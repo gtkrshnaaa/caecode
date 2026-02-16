@@ -24,6 +24,7 @@ GtkWidget *chat_panel;
 GtkWidget *terminal_stack;
 GtkWidget *terminal_list;
 GtkWidget *empty_state;
+GtkWidget *path_label;
 
 int current_theme_idx = 0;
 char current_file[1024] = "";
@@ -82,6 +83,22 @@ void update_status_with_unsaved_mark(gboolean is_same) {
     set_status_message(display_path);
 }
 
+void update_path_bar() {
+    if (!path_label) return;
+    if (strlen(current_file) == 0) {
+        gtk_label_set_text(GTK_LABEL(path_label), "");
+        return;
+    }
+
+    const char *display_path = current_file;
+    if (strlen(current_folder) > 0 && strncmp(current_file, current_folder, strlen(current_folder)) == 0) {
+        display_path = current_file + strlen(current_folder);
+        if (display_path[0] == '/') display_path++;
+    }
+    
+    gtk_label_set_text(GTK_LABEL(path_label), display_path);
+}
+
 static void move_cursor_up() {
     GtkTextIter iter;
     gtk_text_buffer_get_iter_at_mark(GTK_TEXT_BUFFER(text_buffer), &iter, gtk_text_buffer_get_insert(GTK_TEXT_BUFFER(text_buffer)));
@@ -136,6 +153,7 @@ void close_all_files() {
         current_file_row_ref = NULL;
     }
     gtk_window_set_title(GTK_WINDOW(window), "Caecode");
+    update_path_bar();
     show_empty_state();
 }
 
@@ -257,6 +275,7 @@ void show_editor_view() {
     if (strlen(current_file) == 0) {
         show_empty_state();
     } else {
+        update_path_bar();
         gtk_stack_set_visible_child_name(GTK_STACK(editor_stack), "editor");
     }
 }
@@ -578,6 +597,21 @@ void create_main_window() {
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(editor_scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(editor_scrolled_window), GTK_WIDGET(source_view));
 
+    GtkWidget *editor_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    
+    GtkWidget *path_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_name(path_bar, "path-bar");
+    gtk_widget_set_size_request(path_bar, -1, 30);
+    
+    path_label = gtk_label_new("");
+    gtk_widget_set_name(path_label, "path-label");
+    gtk_label_set_xalign(GTK_LABEL(path_label), 0.0);
+    gtk_widget_set_margin_start(path_label, 15);
+    gtk_box_pack_start(GTK_BOX(path_bar), path_label, TRUE, TRUE, 0);
+    
+    gtk_box_pack_start(GTK_BOX(editor_vbox), path_bar, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(editor_vbox), editor_scrolled_window, TRUE, TRUE, 0);
+
     editor_stack = gtk_stack_new();
     gtk_stack_set_transition_type(GTK_STACK(editor_stack), GTK_STACK_TRANSITION_TYPE_CROSSFADE);
     gtk_stack_set_transition_duration(GTK_STACK(editor_stack), 300);
@@ -600,7 +634,7 @@ void create_main_window() {
 
     gtk_stack_add_named(GTK_STACK(editor_stack), welcome_scroll, "welcome");
     gtk_stack_add_named(GTK_STACK(editor_stack), empty_scroll, "empty");
-    gtk_stack_add_named(GTK_STACK(editor_stack), editor_scrolled_window, "editor");
+    gtk_stack_add_named(GTK_STACK(editor_stack), editor_vbox, "editor");
 
     // Nesting logic
     gtk_paned_pack1(GTK_PANED(nested_v_paned), editor_stack, TRUE, FALSE);
