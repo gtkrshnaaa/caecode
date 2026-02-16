@@ -358,7 +358,7 @@ static GtkWidget* create_chat_panel() {
 void create_main_window() {
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window), "Caecode");
-    gtk_window_set_default_size(GTK_WINDOW(window), 1000, 600);
+    gtk_window_set_default_size(GTK_WINDOW(window), 1100, 750);
     
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_container_add(GTK_CONTAINER(window), vbox);
@@ -416,10 +416,10 @@ void create_main_window() {
     chat_panel = create_chat_panel();
     gtk_paned_pack2(GTK_PANED(main_h_paned), chat_panel, FALSE, FALSE);
 
-    // Defaults
-    gtk_paned_set_position(GTK_PANED(inner_h_paned), 250);
-    gtk_paned_set_position(GTK_PANED(nested_v_paned), 450);
-    gtk_paned_set_position(GTK_PANED(main_h_paned), 750);
+    // Defaults (Optimized for 1100px width)
+    gtk_paned_set_position(GTK_PANED(inner_h_paned), 280);    // Sidebar
+    gtk_paned_set_position(GTK_PANED(nested_v_paned), 480);   // Editor Height
+    gtk_paned_set_position(GTK_PANED(main_h_paned), 820);    // Left area vs Chat
 
     if (strlen(current_folder) == 0) show_welcome_screen(); 
     else {
