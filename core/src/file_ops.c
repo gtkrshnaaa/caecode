@@ -40,7 +40,7 @@ static void on_file_loaded(GObject *src, GAsyncResult *res, gpointer user_data) 
         const char *ext = strrchr(ctx->path, '.');
         if (ext && (strcmp(ext, ".unna") == 0 || strcmp(ext, ".nva") == 0 || 
                     strcmp(ext, ".sna") == 0 || strcmp(ext, ".vana") == 0)) {
-            language = gtk_source_language_manager_get_language(lm, "c");
+            language = gtk_source_language_manager_get_language(lm, "js");
         }
     }
 
