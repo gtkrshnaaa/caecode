@@ -163,18 +163,9 @@ void create_main_window() {
     init_sidebar();
     sidebar_scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sidebar_scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    
-    // Use a VBox to wrap tree_view and a spacer for a proper scrolling gap
-    GtkWidget *sidebar_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_box_pack_start(GTK_BOX(sidebar_box), tree_view, TRUE, TRUE, 0);
-    
-    // Add a spacer at the bottom (100px)
-    GtkWidget *spacer = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    gtk_widget_set_size_request(spacer, -1, 100);
-    gtk_box_pack_start(GTK_BOX(sidebar_box), spacer, FALSE, FALSE, 0);
+    gtk_widget_set_name(sidebar_scrolled_window, "sidebar-scrolledwindow");
 
-    // GtkScrolledWindow needs a viewport for GtkBox
-    gtk_container_add(GTK_CONTAINER(sidebar_scrolled_window), sidebar_box);
+    gtk_container_add(GTK_CONTAINER(sidebar_scrolled_window), tree_view);
     gtk_paned_pack1(GTK_PANED(paned), sidebar_scrolled_window, FALSE, FALSE);
 
     // Editor
