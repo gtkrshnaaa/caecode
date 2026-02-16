@@ -64,11 +64,18 @@ void apply_theme(int index) {
 
         char *css_data = g_strdup_printf(
             "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar, #welcome-screen, #bottom-panel, #chat-panel { background-color: %s; color: %s; }"
+            "#sidebar-header { background-color: %s; border-bottom: 1px solid %s; }"
+            "#sidebar-title { font-size: 9pt; font-weight: bold; color: %s; opacity: 0.6; }"
+            "#sidebar-header button { opacity: 0.6; }"
+            "#sidebar-header button:hover { opacity: 1.0; }"
             "treeview { padding-bottom: 100px; }"
             "treeview:selected { background-color: %s; }"
             "statusbar { border-top: 1px solid %s; }"
             ".dim-label { opacity: 0.6; }",
             bg_color, fg_color,
+            (current_theme_idx == 0) ? "#252525" : "#F3F3F3", // header bg
+            (current_theme_idx == 0) ? "#333333" : "#DDDDDD", // header border
+            fg_color, // title color
             (current_theme_idx == 0) ? "#333333" : "#EEEEEE", // selection color
             (current_theme_idx == 0) ? "#222222" : "#DDDDDD"  // statusbar border
         );

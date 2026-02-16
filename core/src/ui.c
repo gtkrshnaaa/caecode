@@ -527,12 +527,37 @@ void create_main_window() {
 
     // Sidebar - Pack into inner_h_paned Slot 1
     init_sidebar();
+    
+    GtkWidget *sidebar_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_name(sidebar_vbox, "sidebar-container");
+    
+    // Sidebar Header
+    GtkWidget *sidebar_header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_name(sidebar_header, "sidebar-header");
+    gtk_widget_set_size_request(sidebar_header, -1, 35);
+    
+    GtkWidget *sidebar_title = gtk_label_new("EXPLORER");
+    gtk_widget_set_name(sidebar_title, "sidebar-title");
+    gtk_label_set_xalign(GTK_LABEL(sidebar_title), 0.0);
+    gtk_widget_set_margin_start(sidebar_title, 15);
+    gtk_box_pack_start(GTK_BOX(sidebar_header), sidebar_title, TRUE, TRUE, 0);
+    
+    GtkWidget *btn_collapse = gtk_button_new_from_icon_name("view-restore-symbolic", GTK_ICON_SIZE_MENU);
+    gtk_button_set_relief(GTK_BUTTON(btn_collapse), GTK_RELIEF_NONE);
+    gtk_widget_set_tooltip_text(btn_collapse, "Collapse Folders in Explorer");
+    g_signal_connect(btn_collapse, "clicked", G_CALLBACK(collapse_all_folders), NULL);
+    gtk_widget_set_margin_end(btn_collapse, 5);
+    gtk_box_pack_end(GTK_BOX(sidebar_header), btn_collapse, FALSE, FALSE, 0);
+    
+    gtk_box_pack_start(GTK_BOX(sidebar_vbox), sidebar_header, FALSE, FALSE, 0);
+
     sidebar_scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sidebar_scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_widget_set_name(sidebar_scrolled_window, "sidebar-scrolledwindow");
     gtk_container_add(GTK_CONTAINER(sidebar_scrolled_window), tree_view);
     
-    gtk_paned_pack1(GTK_PANED(inner_h_paned), sidebar_scrolled_window, FALSE, FALSE);
+    gtk_box_pack_start(GTK_BOX(sidebar_vbox), sidebar_scrolled_window, TRUE, TRUE, 0);
+    gtk_paned_pack1(GTK_PANED(inner_h_paned), sidebar_vbox, FALSE, FALSE);
 
     // Create bottom panel (terminals) early so it's ready for theming
     bottom_panel = create_bottom_panel();
