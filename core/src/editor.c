@@ -4,6 +4,33 @@
 static int current_theme_idx = 0;
 static const char *themes[] = { "caecode-dark", "caecode-light" };
 
+static gboolean is_system_dark_mode() {
+    gboolean prefer_dark = FALSE;
+    GtkSettings *settings = gtk_settings_get_default();
+    g_object_get(settings, "gtk-application-prefer-dark-theme", &prefer_dark, NULL);
+    
+    if (!prefer_dark) {
+        char *theme_name;
+        g_object_get(settings, "gtk-theme-name", &theme_name, NULL);
+        if (theme_name) {
+            char *lower_theme = g_ascii_strdown(theme_name, -1);
+            if (strstr(lower_theme, "dark")) {
+                prefer_dark = TRUE;
+            }
+            g_free(lower_theme);
+            g_free(theme_name);
+        }
+    }
+    return prefer_dark;
+}
+
+static void on_system_theme_changed(GObject *object, GParamSpec *pspec, gpointer user_data) {
+    int detected_idx = is_system_dark_mode() ? 0 : 1;
+    if (detected_idx != current_theme_idx) {
+        apply_theme(detected_idx);
+    }
+}
+
 void apply_theme(int index) {
     current_theme_idx = index;
     GtkSourceStyleScheme *scheme = gtk_source_style_scheme_manager_get_scheme(theme_manager, themes[current_theme_idx]);
@@ -98,26 +125,13 @@ void init_editor() {
     // Add system-wide themes path (installed)
     gtk_source_style_scheme_manager_append_search_path(theme_manager, "/usr/share/caecode/themes");
 
-    // Detect system theme preference
-    gboolean prefer_dark = FALSE;
-    GtkSettings *settings = gtk_settings_get_default();
-    g_object_get(settings, "gtk-application-prefer-dark-theme", &prefer_dark, NULL);
-    
-    // Check theme name as fallback for some environments
-    if (!prefer_dark) {
-        char *theme_name;
-        g_object_get(settings, "gtk-theme-name", &theme_name, NULL);
-        if (theme_name) {
-            char *lower_theme = g_ascii_strdown(theme_name, -1);
-            if (strstr(lower_theme, "dark")) {
-                prefer_dark = TRUE;
-            }
-            g_free(lower_theme);
-            g_free(theme_name);
-        }
-    }
+    // Initial theme detection and apply
+    apply_theme(is_system_dark_mode() ? 0 : 1);
 
-    apply_theme(prefer_dark ? 0 : 1);
+    // Listen for real-time system theme changes
+    GtkSettings *settings = gtk_settings_get_default();
+    g_signal_connect(settings, "notify::gtk-application-prefer-dark-theme", G_CALLBACK(on_system_theme_changed), NULL);
+    g_signal_connect(settings, "notify::gtk-theme-name", G_CALLBACK(on_system_theme_changed), NULL);
 
     g_signal_connect(text_buffer, "changed", G_CALLBACK(on_text_changed), NULL);
 }
