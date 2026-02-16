@@ -30,9 +30,9 @@ static void on_file_loaded(GObject *src, GAsyncResult *res, gpointer user_data) 
     GtkSourceLanguage *language = gtk_source_language_manager_guess_language(lm, ctx->path, NULL);
     gtk_source_buffer_set_language(text_buffer, language);
 
+    select_file_in_sidebar(ctx->path);
     mark_unsaved_file(ctx->path, FALSE);
     update_status_with_unsaved_mark(TRUE);
-    select_file_in_sidebar(ctx->path);
     show_editor_view();
 
     g_free(contents);
