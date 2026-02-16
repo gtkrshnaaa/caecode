@@ -375,6 +375,11 @@ void create_main_window() {
 
     gtk_box_pack_start(GTK_BOX(vbox), main_h_paned, TRUE, TRUE, 0);
 
+    // Initialize Global CSS Provider before modules that use it
+    app_css_provider = gtk_css_provider_new();
+    GtkStyleContext *screen_ctx = gtk_widget_get_style_context(window);
+    gtk_style_context_add_provider(screen_ctx, GTK_STYLE_PROVIDER(app_css_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
     // Sidebar - Pack into inner_h_paned Slot 1
     init_sidebar();
     sidebar_scrolled_window = gtk_scrolled_window_new(NULL, NULL);
@@ -383,6 +388,9 @@ void create_main_window() {
     gtk_container_add(GTK_CONTAINER(sidebar_scrolled_window), tree_view);
     
     gtk_paned_pack1(GTK_PANED(inner_h_paned), sidebar_scrolled_window, FALSE, FALSE);
+
+    // Create bottom panel (terminals) early so it's ready for theming
+    bottom_panel = create_bottom_panel();
 
     // Editor Area Stack
     init_editor();
@@ -417,12 +425,8 @@ void create_main_window() {
 
     // Nesting logic
     gtk_paned_pack1(GTK_PANED(nested_v_paned), editor_stack, TRUE, FALSE);
-    
-    bottom_panel = create_bottom_panel();
     gtk_paned_pack2(GTK_PANED(nested_v_paned), bottom_panel, FALSE, FALSE);
-    
     gtk_paned_pack2(GTK_PANED(inner_h_paned), nested_v_paned, TRUE, FALSE);
-    
     gtk_paned_pack1(GTK_PANED(main_h_paned), inner_h_paned, TRUE, FALSE);
     
     chat_panel = create_chat_panel();
@@ -456,11 +460,6 @@ void create_main_window() {
     set_status_message("Welcome to Caecode");
 
     init_search_popup();
-
-    // Initialize Global CSS Provider
-    app_css_provider = gtk_css_provider_new();
-    GtkStyleContext *screen_ctx = gtk_widget_get_style_context(window);
-    gtk_style_context_add_provider(screen_ctx, GTK_STYLE_PROVIDER(app_css_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     g_signal_connect(window, "key-press-event", G_CALLBACK(on_key_press), NULL);
