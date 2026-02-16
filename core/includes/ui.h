@@ -7,5 +7,6 @@ void create_main_window();
 void set_status_message(const char *message);
 void update_status_with_unsaved_mark(gboolean is_same);
 void update_status_with_relative_path();
+void update_path_bar();
 
 #endif // UI_H

@@ -6,7 +6,7 @@
 #include <vte/vte.h>
 
 // Version and Constants
-#define VERSION "0.0.7"
+#define VERSION "0.0.8"
 
 // Global UI Widgets (externed for module access)
 extern GtkWidget *window;
@@ -27,6 +27,7 @@ extern GtkWidget *chat_panel;
 extern GtkWidget *terminal_stack;
 extern GtkWidget *terminal_list;
 extern GtkWidget *empty_state;
+extern GtkWidget *path_label;
 
 // Global State
 extern int current_theme_idx;

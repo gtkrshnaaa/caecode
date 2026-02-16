@@ -202,6 +202,12 @@ void reload_sidebar() {
     }
 }
 
+void collapse_all_folders() {
+    if (tree_view) {
+        gtk_tree_view_collapse_all(GTK_TREE_VIEW(tree_view));
+    }
+}
+
 
 static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColumn *col, gpointer user_data) {
     GtkTreeIter iter;
