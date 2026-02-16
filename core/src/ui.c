@@ -191,6 +191,9 @@ void create_main_window() {
     gtk_container_add(GTK_CONTAINER(editor_scrolled_window), GTK_WIDGET(source_view));
     gtk_paned_pack2(GTK_PANED(paned), editor_scrolled_window, TRUE, FALSE);
 
+    // Set initial sidebar width (divider position)
+    gtk_paned_set_position(GTK_PANED(paned), 250);
+
     // Status bar
     status_bar = gtk_statusbar_new();
     gtk_box_pack_start(GTK_BOX(vbox), status_bar, FALSE, FALSE, 0);
