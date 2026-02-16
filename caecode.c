@@ -791,12 +791,15 @@ void activate(GtkApplication *app, gpointer user_data) {
 
     theme_manager = gtk_source_style_scheme_manager_get_default();
     
-    // Add local themes path
+    // Add local themes path (development)
     char *cwd = g_get_current_dir();
-    char *theme_path = g_build_filename(cwd, "assets", "themes", NULL);
-    gtk_source_style_scheme_manager_append_search_path(theme_manager, theme_path);
-    g_free(theme_path);
+    char *local_theme_path = g_build_filename(cwd, "assets", "themes", NULL);
+    gtk_source_style_scheme_manager_append_search_path(theme_manager, local_theme_path);
+    g_free(local_theme_path);
     g_free(cwd);
+
+    // Add system-wide themes path (installed)
+    gtk_source_style_scheme_manager_append_search_path(theme_manager, "/usr/share/caecode/themes");
 
     GtkSourceStyleScheme *default_scheme = gtk_source_style_scheme_manager_get_scheme(theme_manager, "caecode-dark");
     if (!default_scheme) {
