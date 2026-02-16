@@ -20,6 +20,8 @@ GtkCssProvider *app_css_provider = NULL;
 GtkWidget *editor_stack;
 GtkWidget *welcome_screen;
 GtkWidget *bottom_panel;
+GtkWidget *bottom_content_stack;
+GtkWidget *git_status_list;
 GtkWidget *chat_panel;
 GtkWidget *terminal_stack;
 GtkWidget *terminal_list;
@@ -361,6 +363,100 @@ static GtkWidget* create_empty_state() {
     return box;
 }
 
+void show_git_view() {
+    gtk_stack_set_visible_child_name(GTK_STACK(bottom_content_stack), "git");
+}
+
+void show_terminal_view() {
+    gtk_stack_set_visible_child_name(GTK_STACK(bottom_content_stack), "terminal");
+}
+
+static void on_tab_clicked(GtkButton *btn, gpointer user_data) {
+    const char *target = (const char *)user_data;
+    gtk_stack_set_visible_child_name(GTK_STACK(bottom_content_stack), target);
+    
+    // Update active style
+    GtkWidget *header = gtk_widget_get_parent(GTK_WIDGET(btn));
+    GList *children = gtk_container_get_children(GTK_CONTAINER(header));
+    for (GList *l = children; l != NULL; l = l->next) {
+        if (GTK_IS_BUTTON(l->data)) {
+            gtk_style_context_remove_class(gtk_widget_get_style_context(GTK_WIDGET(l->data)), "active");
+        }
+    }
+    gtk_style_context_add_class(gtk_widget_get_style_context(GTK_WIDGET(btn)), "active");
+    g_list_free(children);
+
+    if (strcmp(target, "git") == 0) {
+        refresh_git_status();
+    }
+}
+
+static void on_git_file_clicked(GtkButton *btn, gpointer user_data) {
+    char *path = (char *)user_data;
+    char full_path[2048];
+    snprintf(full_path, sizeof(full_path), "%s/%s", current_folder, path);
+    load_file_async(full_path);
+}
+
+void refresh_git_status() {
+    if (strlen(current_folder) == 0) return;
+
+    // Clear list
+    GList *children = gtk_container_get_children(GTK_CONTAINER(git_status_list));
+    for (GList *l = children; l != NULL; l = l->next) {
+        gtk_widget_destroy(GTK_WIDGET(l->data));
+    }
+    g_list_free(children);
+
+    // Run git status --porcelain
+    gchar *output = NULL;
+    gchar *cmd = g_strdup_printf("git -C \"%s\" status --porcelain", current_folder);
+    if (g_spawn_command_line_sync(cmd, &output, NULL, NULL, NULL)) {
+        char **lines = g_strsplit(output, "\n", -1);
+        for (int i = 0; lines[i] != NULL; i++) {
+            if (strlen(lines[i]) < 4) continue;
+
+            char *status_code = g_strndup(lines[i], 2);
+            char *rel_path = g_strdup(lines[i] + 3);
+
+            GtkWidget *row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+            gtk_widget_set_margin_start(row_box, 10);
+            gtk_widget_set_margin_end(row_box, 10);
+
+            GtkWidget *status_label = gtk_label_new(status_code);
+            gtk_style_context_add_class(gtk_widget_get_style_context(status_label), "dim-label");
+            
+            GtkWidget *btn = gtk_button_new_with_label(rel_path);
+            gtk_button_set_relief(GTK_BUTTON(btn), GTK_RELIEF_NONE);
+            gtk_widget_set_halign(btn, GTK_ALIGN_START);
+            g_signal_connect(btn, "clicked", G_CALLBACK(on_git_file_clicked), g_strdup(rel_path));
+
+            gtk_box_pack_start(GTK_BOX(row_box), status_label, FALSE, FALSE, 0);
+            gtk_box_pack_start(GTK_BOX(row_box), btn, TRUE, TRUE, 0);
+
+            gtk_list_box_insert(GTK_LIST_BOX(git_status_list), row_box, -1);
+
+            g_free(status_code);
+            g_free(rel_path);
+        }
+        g_strfreev(lines);
+    }
+    g_free(output);
+    g_free(cmd);
+    gtk_widget_show_all(git_status_list);
+}
+
+static GtkWidget* create_git_status_view() {
+    GtkWidget *scrolled = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    
+    git_status_list = gtk_list_box_new();
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(git_status_list), GTK_SELECTION_NONE);
+    gtk_container_add(GTK_CONTAINER(scrolled), git_status_list);
+    
+    return scrolled;
+}
+
 static void on_terminal_list_row_selected(GtkListBox *list, GtkListBoxRow *row, gpointer user_data) {
     if (!row) return;
     const char *name = g_object_get_data(G_OBJECT(row), "terminal-name");
@@ -376,13 +472,17 @@ static GtkWidget* create_bottom_panel() {
     GtkWidget *header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 20);
     gtk_style_context_add_class(gtk_widget_get_style_context(header), "terminal-toolbar");
     
-    const char *tabs[] = {"PROBLEMS", "OUTPUT", "DEBUG CONSOLE", "TERMINAL", "PORTS"};
-    for (int i = 0; i < 5; i++) {
+    const char *tabs[] = {"TERMINAL", "GIT STATUS"};
+    for (int i = 0; i < 2; i++) {
         GtkWidget *btn = gtk_button_new_with_label(tabs[i]);
         gtk_button_set_relief(GTK_BUTTON(btn), GTK_RELIEF_NONE);
         gtk_widget_set_name(btn, "terminal-header-item");
         gtk_style_context_add_class(gtk_widget_get_style_context(btn), "terminal-header-item");
-        if (i == 3) gtk_style_context_add_class(gtk_widget_get_style_context(btn), "active");
+        if (i == 0) gtk_style_context_add_class(gtk_widget_get_style_context(btn), "active");
+        
+        const char *target = (i == 0) ? "terminal" : "git";
+        g_signal_connect(btn, "clicked", G_CALLBACK(on_tab_clicked), (gpointer)target);
+        
         gtk_box_pack_start(GTK_BOX(header), btn, FALSE, FALSE, 0);
     }
     
@@ -421,7 +521,14 @@ static GtkWidget* create_bottom_panel() {
     gtk_paned_pack2(GTK_PANED(h_paned), list_scrolled, FALSE, FALSE);
     gtk_paned_set_position(GTK_PANED(h_paned), 800); // Default position
     
-    gtk_box_pack_start(GTK_BOX(vbox), h_paned, TRUE, TRUE, 0);
+    // Main Content Stack: Terminal Paned vs Git View
+    bottom_content_stack = gtk_stack_new();
+    gtk_stack_set_transition_type(GTK_STACK(bottom_content_stack), GTK_STACK_TRANSITION_TYPE_CROSSFADE);
+
+    gtk_stack_add_named(GTK_STACK(bottom_content_stack), h_paned, "terminal");
+    gtk_stack_add_named(GTK_STACK(bottom_content_stack), create_git_status_view(), "git");
+
+    gtk_box_pack_start(GTK_BOX(vbox), bottom_content_stack, TRUE, TRUE, 0);
     
     return vbox;
 }
