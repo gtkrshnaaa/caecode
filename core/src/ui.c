@@ -376,13 +376,12 @@ static GtkWidget* create_bottom_panel() {
     GtkWidget *header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 20);
     gtk_style_context_add_class(gtk_widget_get_style_context(header), "terminal-toolbar");
     
-    // Just a non-clickable Terminal label for aesthetics
-    GtkWidget *btn = gtk_button_new_with_label("TERMINAL");
-    gtk_button_set_relief(GTK_BUTTON(btn), GTK_RELIEF_NONE);
-    gtk_widget_set_name(btn, "terminal-header-item");
-    gtk_style_context_add_class(gtk_widget_get_style_context(btn), "terminal-header-item");
-    gtk_style_context_add_class(gtk_widget_get_style_context(btn), "active");
-    gtk_box_pack_start(GTK_BOX(header), btn, FALSE, FALSE, 0);
+    // Just a static title label
+    GtkWidget *title = gtk_label_new("TERMINAL");
+    gtk_widget_set_name(title, "terminal-header-item");
+    gtk_style_context_add_class(gtk_widget_get_style_context(title), "terminal-header-item");
+    gtk_style_context_add_class(gtk_widget_get_style_context(title), "active");
+    gtk_box_pack_start(GTK_BOX(header), title, FALSE, FALSE, 0);
     
     // Action buttons on the right side of header
     GtkWidget *header_actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
