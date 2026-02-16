@@ -1,10 +1,10 @@
 # Makefile for Caecode with GtkSourceView
 
 CC = gcc
-CFLAGS = `pkg-config --cflags gtk+-3.0 gtksourceview-3.0 gio-2.0` -Wno-deprecated-declarations
+CFLAGS = `pkg-config --cflags gtk+-3.0 gtksourceview-3.0 gio-2.0` -Icore/includes -Wno-deprecated-declarations
 LDFLAGS = `pkg-config --libs gtk+-3.0 gtksourceview-3.0 gio-2.0`
 TARGET = caecode
-SRC = caecode.c
+SRC = $(wildcard core/src/*.c)
 
 # Paths
 BIN_DIR = bin
@@ -38,7 +38,7 @@ builddeb: $(BIN_TARGET)
 	@cp $(BIN_TARGET) $(PKG_ROOT)/usr/bin/caecode
 	@chmod 755 $(PKG_ROOT)/usr/bin/caecode
 	# Install themes
-	@cp assets/themes/*.xml $(PKG_ROOT)/usr/share/caecode/themes/
+	@cp core/themes/*.xml $(PKG_ROOT)/usr/share/caecode/themes/
 	@chmod 644 $(PKG_ROOT)/usr/share/caecode/themes/*.xml
 	# Install desktop icon
 	@cp assets/logo/caecode.png $(PKG_ROOT)/usr/share/icons/hicolor/256x256/apps/caecode.png

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<style-scheme id="caecode-light" _name="Caecode Light" version="1.0">
+  <author>antigravity</author>
+  <_description>Monochrome light theme for Caecode</_description>
+
+  <!-- Monochrome Light Palette -->
+  <color name="bg"        value="#FFFFFF"/>
+  <color name="fg"        value="#333333"/>
+  <color name="grey"      value="#606060"/>
+  <color name="lightgrey" value="#909090"/>
+  <color name="white"     value="#000000"/>
+  <color name="darkgrey"  value="#A0A0A0"/>
+  <color name="selection" value="#EEEEEE"/>
+
+  <!-- Global Settings -->
+  <style name="text"                        foreground="fg" background="bg"/>
+  <style name="selection"                   background="selection"/>
+  <style name="cursor"                      foreground="white"/>
+  <style name="current-line"                background="#F5F5F5"/>
+  <style name="line-numbers"                foreground="darkgrey" background="#FAFAFA"/>
+
+  <!-- Comments -->
+  <style name="def:comment"                 foreground="darkgrey" italic="true"/>
+  <style name="def:shebang"                 foreground="darkgrey" bold="true"/>
+
+  <!-- Constants/Values -->
+  <style name="def:constant"                foreground="white"/>
+  <style name="def:string"                  foreground="white"/>
+  <style name="def:number"                  foreground="white"/>
+  <style name="def:boolean"                 foreground="white"/>
+
+  <!-- Identifiers -->
+  <style name="def:identifier"              foreground="fg"/>
+
+  <!-- Keywords/Statements -->
+  <style name="def:statement"               foreground="grey" bold="true"/>
+  <style name="def:type"                    foreground="grey" bold="true"/>
+  <style name="def:keyword"                 foreground="grey" bold="true"/>
+
+  <!-- Operators/Symbols -->
+  <style name="def:operator"                foreground="lightgrey"/>
+
+  <!-- Others -->
+  <style name="def:preprocessor"            foreground="grey"/>
+  <style name="def:error"                   foreground="#CC0000" bold="true"/>
+  <style name="def:note"                    foreground="#888800" bold="true"/>
+</style-scheme>
