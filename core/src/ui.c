@@ -425,16 +425,26 @@ void create_main_window() {
     chat_panel = create_chat_panel();
     gtk_paned_pack2(GTK_PANED(main_h_paned), chat_panel, FALSE, FALSE);
 
-    // Defaults (Optimized for 1100px width)
-    gtk_paned_set_position(GTK_PANED(inner_h_paned), 280);    // Sidebar
-    gtk_paned_set_position(GTK_PANED(nested_v_paned), 480);   // Editor Height
-    gtk_paned_set_position(GTK_PANED(main_h_paned), 820);    // Left area vs Chat
+    // Dynamic Sizing: 90% of primary monitor
+    GdkDisplay *display = gdk_display_get_default();
+    GdkMonitor *monitor = gdk_display_get_primary_monitor(display);
+    GdkRectangle geometry;
+    gdk_monitor_get_geometry(monitor, &geometry);
+
+    int win_width = geometry.width * 0.9;
+    int win_height = geometry.height * 0.9;
+    gtk_window_set_default_size(GTK_WINDOW(window), win_width, win_height);
 
     if (strlen(current_folder) == 0) show_welcome_screen(); 
     else {
         show_editor_view();
-        create_new_terminal(); // Auto-open one terminal if folder opened
+        create_new_terminal(); 
     }
+
+    // Defaults (Dynamic proportions)
+    gtk_paned_set_position(GTK_PANED(inner_h_paned), 280);                    // Sidebar fix
+    gtk_paned_set_position(GTK_PANED(nested_v_paned), win_height * 0.65);     // Editor vs Terminal
+    gtk_paned_set_position(GTK_PANED(main_h_paned), win_width - 300);          // Right Chat area
 
 
     // Status bar
