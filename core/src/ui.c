@@ -265,6 +265,7 @@ void create_main_window() {
     gtk_stack_set_transition_duration(GTK_STACK(editor_stack), 300);
     
     welcome_screen = create_welcome_screen();
+    gtk_widget_set_name(welcome_screen, "welcome-screen");
     gtk_stack_add_named(GTK_STACK(editor_stack), welcome_screen, "welcome");
     gtk_stack_add_named(GTK_STACK(editor_stack), editor_scrolled_window, "editor");
     

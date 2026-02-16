@@ -56,10 +56,11 @@ void switch_theme() {
         const char *line_num_bg = (current_theme == 0) ? "#1e1e1e" : "#FFFFFF";
         
         char *css_data = g_strdup_printf(
-            "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar { background-color: %s; color: %s; }"
+            "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar, #welcome-screen { background-color: %s; color: %s; }"
             "treeview { padding-bottom: 100px; }"
             "treeview:selected { background-color: %s; }"
-            "statusbar { border-top: 1px solid %s; }",
+            "statusbar { border-top: 1px solid %s; }"
+            ".dim-label { opacity: 0.6; }",
             bg_color, fg_color,
             (current_theme == 0) ? "#333333" : "#EEEEEE", // selection color
             (current_theme == 0) ? "#222222" : "#DDDDDD"  // statusbar border
