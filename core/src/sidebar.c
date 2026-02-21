@@ -241,6 +241,14 @@ void open_folder(const char *path) {
     update_git_status();
     show_editor_view(); // Will show empty state as current_file is empty
     ui_refresh_terminal_paths(path);
+    
+    if (sidebar_column) {
+        char *basename = g_path_get_basename(path);
+        if (basename) {
+            gtk_tree_view_column_set_title(sidebar_column, basename);
+            g_free(basename);
+        }
+    }
 }
 
 void close_folder() {
@@ -249,6 +257,9 @@ void close_folder() {
     g_list_free_full(file_list, g_free);
     file_list = NULL;
     current_folder[0] = '\0';
+    if (sidebar_column) {
+        gtk_tree_view_column_set_title(sidebar_column, "Files");
+    }
     if (current_file_row_ref) {
         gtk_tree_row_reference_free(current_file_row_ref);
         current_file_row_ref = NULL;
@@ -304,6 +315,8 @@ static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColu
     }
 }
 
+GtkTreeViewColumn *sidebar_column = NULL;
+
 void init_sidebar() {
     tree_store = gtk_tree_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
     tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(tree_store));
@@ -312,6 +325,7 @@ void init_sidebar() {
     gtk_tree_view_set_activate_on_single_click(GTK_TREE_VIEW(tree_view), TRUE);
 
     GtkTreeViewColumn *column = gtk_tree_view_column_new();
+    sidebar_column = column;
     gtk_tree_view_column_set_title(column, "Files");
 
     GtkCellRenderer *icon_renderer = gtk_cell_renderer_pixbuf_new();

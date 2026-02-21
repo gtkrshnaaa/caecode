@@ -16,6 +16,7 @@ extern GtkSourceView *source_view;
 extern GtkSourceBuffer *text_buffer;
 extern GtkTreeStore *tree_store;
 extern GtkWidget *tree_view;
+extern GtkTreeViewColumn *sidebar_column;
 extern GtkSourceStyleSchemeManager *theme_manager;
 extern GtkTreeRowReference *current_file_row_ref;
 extern GList *file_list;
