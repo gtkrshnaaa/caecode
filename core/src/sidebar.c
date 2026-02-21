@@ -5,6 +5,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <gio/gunixinputstream.h>
 
 typedef struct {
     char *path;
@@ -54,38 +55,121 @@ static void update_tree_colors_recursive(GtkTreeModel *model, GtkTreeIter *iter,
     } while (gtk_tree_model_iter_next(model, iter));
 }
 
+typedef struct {
+    GString *buffer;
+} GitStatusCtx;
+
+static void on_git_status_read(GObject *source_object, GAsyncResult *res, gpointer user_data) {
+    GitStatusCtx *ctx = (GitStatusCtx *)user_data;
+    GInputStream *stream = G_INPUT_STREAM(source_object);
+    GError *err = NULL;
+    char buf[4096];
+    gssize bytes_read = g_input_stream_read_finish(stream, res, &err);
+
+    if (bytes_read > 0) {
+        g_string_append_len(ctx->buffer, buf, bytes_read);
+        g_input_stream_read_async(stream, buf, sizeof(buf), G_PRIORITY_DEFAULT, NULL, on_git_status_read, ctx);
+    } else {
+        if (err) {
+            g_error_free(err);
+        } else if (ctx->buffer->len > 0) {
+            GHashTable *git_status = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+            char **lines = g_strsplit(ctx->buffer->str, "\n", -1);
+            
+            for (int i = 0; lines[i] && strlen(lines[i]) > 3; i++) {
+                char status[3];
+                strncpy(status, lines[i], 2);
+                status[2] = '\0';
+                
+                char *rel_path = lines[i] + 3;
+                if (rel_path[0] == '"') {
+                    // Primitive unquoting if needed, or leave for exact match
+                }
+                
+                char *abs_path = g_build_filename(current_folder, rel_path, NULL);
+                g_hash_table_insert(git_status, abs_path, g_strdup(status));
+            }
+            g_strfreev(lines);
+
+            GtkTreeIter iter;
+            if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(tree_store), &iter)) {
+                update_tree_colors_recursive(GTK_TREE_MODEL(tree_store), &iter, git_status);
+            }
+            g_hash_table_destroy(git_status);
+        }
+        
+        g_string_free(ctx->buffer, TRUE);
+        g_free(ctx);
+        g_input_stream_close_async(stream, G_PRIORITY_DEFAULT, NULL, NULL, NULL);
+        g_object_unref(stream);
+    }
+}
+
+static void on_git_status_child_watch(GPid pid, gint status, gpointer user_data) {
+    g_spawn_close_pid(pid);
+}
+
+static void on_git_status_spliced(GObject *source, GAsyncResult *res, gpointer user_data) {
+    GOutputStream *out = G_OUTPUT_STREAM(source);
+    GError *splice_err = NULL;
+    if (g_output_stream_splice_finish(out, res, &splice_err) >= 0) {
+        gsize size = g_memory_output_stream_get_data_size(G_MEMORY_OUTPUT_STREAM(out));
+        if (size > 0) {
+            char *output = g_strndup(g_memory_output_stream_get_data(G_MEMORY_OUTPUT_STREAM(out)), size);
+            
+            GHashTable *git_status = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+            char **lines = g_strsplit(output, "\n", -1);
+            
+            for (int i = 0; lines[i] && strlen(lines[i]) > 3; i++) {
+                char status[3];
+                strncpy(status, lines[i], 2);
+                status[2] = '\0';
+                
+                char *rel_path = lines[i] + 3;
+                char *abs_path = g_build_filename(current_folder, rel_path, NULL);
+                g_hash_table_insert(git_status, abs_path, g_strdup(status));
+            }
+            g_strfreev(lines);
+            g_free(output);
+
+            GtkTreeIter iter;
+            if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(tree_store), &iter)) {
+                update_tree_colors_recursive(GTK_TREE_MODEL(tree_store), &iter, git_status);
+            }
+            g_hash_table_destroy(git_status);
+        }
+    }
+    if (splice_err) g_error_free(splice_err);
+    g_object_unref(out);
+}
+
 void update_git_status() {
     if (strlen(current_folder) == 0) return;
 
-    GHashTable *git_status = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
-    char *cmd = g_strdup_printf("git -C \"%s\" status --porcelain -u", current_folder);
-    char *output = NULL;
-    if (g_spawn_command_line_sync(cmd, &output, NULL, NULL, NULL)) {
-        char **lines = g_strsplit(output, "\n", -1);
-        for (int i = 0; lines[i] && strlen(lines[i]) > 3; i++) {
-            char status[3];
-            strncpy(status, lines[i], 2);
-            status[2] = '\0';
-            
-            char *rel_path = lines[i] + 3;
-            // Handle cases where git status might return quoted paths for special chars
-            if (rel_path[0] == '"') {
-                // Simplified handle: just use as is for now or better parsing if needed
-            }
-            
-            char *abs_path = g_build_filename(current_folder, rel_path, NULL);
-            g_hash_table_insert(git_status, abs_path, g_strdup(status));
-        }
-        g_strfreev(lines);
-        g_free(output);
-    }
-    g_free(cmd);
+    char *argv[] = { "git", "-C", current_folder, "status", "--porcelain", "-u", NULL };
+    
+    gint standard_output;
+    GPid pid;
+    GError *err = NULL;
 
-    GtkTreeIter iter;
-    if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(tree_store), &iter)) {
-        update_tree_colors_recursive(GTK_TREE_MODEL(tree_store), &iter, git_status);
+    if (g_spawn_async_with_pipes(current_folder, argv, NULL, G_SPAWN_DO_NOT_REAP_CHILD | G_SPAWN_SEARCH_PATH, NULL, NULL, &pid, NULL, &standard_output, NULL, &err)) {
+        
+        GitStatusCtx *ctx = g_new0(GitStatusCtx, 1);
+        ctx->buffer = g_string_new("");
+
+        GInputStream *stream = g_unix_input_stream_new(standard_output, TRUE);
+        char *buf = g_malloc(4096);
+        g_free(buf); 
+        
+        GOutputStream *mem_stream = g_memory_output_stream_new(NULL, 0, g_realloc, g_free);
+        g_output_stream_splice_async(mem_stream, stream, G_OUTPUT_STREAM_SPLICE_CLOSE_SOURCE | G_OUTPUT_STREAM_SPLICE_CLOSE_TARGET, 
+            G_PRIORITY_DEFAULT, NULL, on_git_status_spliced, NULL);
+        
+        g_object_unref(stream);
+        g_child_watch_add(pid, on_git_status_child_watch, NULL);
+    } else {
+        if (err) g_error_free(err);
     }
-    g_hash_table_destroy(git_status);
 }
 
 static void stop_population_if_running() {

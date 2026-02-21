@@ -5,17 +5,27 @@
 
 GtkWidget *search_popup, *search_entry, *search_list;
 
+static guint search_timeout_id = 0;
+
 static void filter_file_list(const char *query) {
     GtkListStore *store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(search_list)));
     gtk_list_store_clear(store);
 
+    char *lower_query = g_ascii_strdown(query, -1);
     gboolean first = FALSE;
+    int count = 0;
+
     for (GList *l = file_list; l != NULL; l = l->next) {
+        if (count >= 100) break; // Hard cap UI elements to prevent rendering freeze
+        
         const char *path = (const char *)l->data;
-        if (g_strrstr(path, query) || strlen(query) == 0) {
+        char *lower_path = g_ascii_strdown(path, -1);
+        
+        if (g_strrstr(lower_path, lower_query) || strlen(lower_query) == 0) {
             GtkTreeIter iter;
             gtk_list_store_append(store, &iter);
             gtk_list_store_set(store, &iter, 0, path, -1);
+            count++;
 
             if (!first) {
                 GtkTreePath *tp = gtk_tree_model_get_path(GTK_TREE_MODEL(store), &iter);
@@ -24,12 +34,21 @@ static void filter_file_list(const char *query) {
                 first = TRUE;
             }
         }
+        g_free(lower_path);
     }
+    g_free(lower_query);
+}
+
+static gboolean debounced_search(gpointer user_data) {
+    search_timeout_id = 0;
+    const char *text = gtk_entry_get_text(GTK_ENTRY(search_entry));
+    filter_file_list(text);
+    return FALSE;
 }
 
 static void on_search_entry_changed(GtkEditable *editable, gpointer user_data) {
-    const char *text = gtk_entry_get_text(GTK_ENTRY(search_entry));
-    filter_file_list(text);
+    if (search_timeout_id > 0) g_source_remove(search_timeout_id);
+    search_timeout_id = g_timeout_add(150, debounced_search, NULL);
 }
 
 static void activate_selected_file() {

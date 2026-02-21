@@ -3,6 +3,7 @@
 #include "sidebar.h"
 #include "ui.h"
 #include "file_ops.h"
+#include <gio/gunixinputstream.h>
 
 static guint autosave_timeout_id = 0;
 
@@ -25,6 +26,55 @@ static GdkPixbuf *create_color_bar_pixbuf(const char *color_str) {
     return pixbuf;
 }
 
+static void on_git_gutter_child_watch(GPid pid, gint status, gpointer user_data) {
+    g_spawn_close_pid(pid);
+}
+
+static void on_git_gutter_spliced(GObject *source, GAsyncResult *res, gpointer user_data) {
+    GOutputStream *out = G_OUTPUT_STREAM(source);
+    GError *splice_err = NULL;
+    if (g_output_stream_splice_finish(out, res, &splice_err) >= 0) {
+        gsize size = g_memory_output_stream_get_data_size(G_MEMORY_OUTPUT_STREAM(out));
+        if (size > 0) {
+            char *output = g_strndup(g_memory_output_stream_get_data(G_MEMORY_OUTPUT_STREAM(out)), size);
+            char **lines = g_strsplit(output, "\n", -1);
+            
+            gboolean is_diff = (g_strstr_len(output, size, "diff --git") != NULL);
+            if (!is_diff && size < 50) { 
+            }
+            
+            for (int i = 0; lines[i]; i++) {
+                if (g_str_has_prefix(lines[i], "@@")) {
+                    int old_line, old_count, new_line, new_count;
+                    old_count = 1; new_count = 1; 
+    
+                    if (sscanf(lines[i], "@@ -%d,%d +%d,%d @@", &old_line, &old_count, &new_line, &new_count) >= 2 ||
+                        sscanf(lines[i], "@@ -%d +%d,%d @@", &old_line, &new_line, &new_count) >= 2 ||
+                        sscanf(lines[i], "@@ -%d,%d +%d @@", &old_line, &old_count, &new_line) >= 2 ||
+                        sscanf(lines[i], "@@ -%d +%d @@", &old_line, &new_line) >= 2) {
+                        
+                        const char *category = (old_count == 0) ? "git-added" : "git-modified";
+                        if (new_count == 0 && old_count > 0) category = "git-deleted";
+    
+                        int start_line = (new_line > 0) ? new_line - 1 : 0;
+                        int count = (new_count > 0) ? new_count : 1;
+    
+                        for (int j = 0; j < count; j++) {
+                            GtkTextIter iter;
+                            gtk_text_buffer_get_iter_at_line(GTK_TEXT_BUFFER(text_buffer), &iter, start_line + j);
+                            gtk_source_buffer_create_source_mark(text_buffer, NULL, category, &iter);
+                        }
+                    }
+                }
+            }
+            g_strfreev(lines);
+            g_free(output);
+        }
+    }
+    if (splice_err) g_error_free(splice_err);
+    g_object_unref(out);
+}
+
 void update_git_gutter() {
     if (strlen(current_file) == 0 || strlen(current_folder) == 0) return;
 
@@ -35,64 +85,23 @@ void update_git_gutter() {
     gtk_source_buffer_remove_source_marks(text_buffer, &start, &end, "git-modified");
     gtk_source_buffer_remove_source_marks(text_buffer, &start, &end, "git-deleted");
 
-    // Check if file is untracked first
-    char *status_cmd = g_strdup_printf("git -C \"%s\" status --porcelain -- \"%s\"", current_folder, current_file);
-    char *status_out = NULL;
-    gboolean is_untracked = FALSE;
-    if (g_spawn_command_line_sync(status_cmd, &status_out, NULL, NULL, NULL)) {
-        if (status_out && g_str_has_prefix(status_out, "??")) {
-            is_untracked = TRUE;
-        }
-        g_free(status_out);
+    char *diff_cmd[] = { "git", "-C", current_folder, "diff", "-U0", "HEAD", "--", current_file, NULL };
+    gint standard_output;
+    GPid pid;
+    GError *err = NULL;
+
+    if (g_spawn_async_with_pipes(current_folder, diff_cmd, NULL, G_SPAWN_DO_NOT_REAP_CHILD | G_SPAWN_SEARCH_PATH, NULL, NULL, &pid, NULL, &standard_output, NULL, &err)) {
+        GInputStream *stream = g_unix_input_stream_new(standard_output, TRUE);
+        GOutputStream *mem_stream = g_memory_output_stream_new(NULL, 0, g_realloc, g_free);
+        
+        g_output_stream_splice_async(mem_stream, stream, G_OUTPUT_STREAM_SPLICE_CLOSE_SOURCE | G_OUTPUT_STREAM_SPLICE_CLOSE_TARGET, 
+            G_PRIORITY_DEFAULT, NULL, on_git_gutter_spliced, NULL);
+            
+        g_object_unref(stream);
+        g_child_watch_add(pid, on_git_gutter_child_watch, NULL);
+    } else {
+        if (err) g_error_free(err);
     }
-    g_free(status_cmd);
-
-    if (is_untracked) {
-        // Mark all lines as added for untracked files
-        int line_count = gtk_text_buffer_get_line_count(GTK_TEXT_BUFFER(text_buffer));
-        for (int i = 0; i < line_count; i++) {
-            GtkTextIter iter;
-            gtk_text_buffer_get_iter_at_line(GTK_TEXT_BUFFER(text_buffer), &iter, i);
-            gtk_source_buffer_create_source_mark(text_buffer, NULL, "git-added", &iter);
-        }
-        return;
-    }
-
-    char *cmd = g_strdup_printf("git -C \"%s\" diff -U0 HEAD -- \"%s\"", current_folder, current_file);
-    char *output = NULL;
-    if (g_spawn_command_line_sync(cmd, &output, NULL, NULL, NULL)) {
-        char **lines = g_strsplit(output, "\n", -1);
-        for (int i = 0; lines[i]; i++) {
-            if (g_str_has_prefix(lines[i], "@@")) {
-                // Parse @@ -line,count +line,count @@
-                int old_line, old_count, new_line, new_count;
-                // Initialize counts because sscanf might only find lines
-                old_count = 1; new_count = 1; 
-
-                if (sscanf(lines[i], "@@ -%d,%d +%d,%d @@", &old_line, &old_count, &new_line, &new_count) >= 2 ||
-                    sscanf(lines[i], "@@ -%d +%d,%d @@", &old_line, &new_line, &new_count) >= 2 ||
-                    sscanf(lines[i], "@@ -%d,%d +%d @@", &old_line, &old_count, &new_line) >= 2 ||
-                    sscanf(lines[i], "@@ -%d +%d @@", &old_line, &new_line) >= 2) {
-                    
-                    const char *category = (old_count == 0) ? "git-added" : "git-modified";
-                    if (new_count == 0 && old_count > 0) category = "git-deleted";
-
-                    // GtkSourceView lines are 0-indexed for marks but 1-indexed in git diff
-                    int start_line = (new_line > 0) ? new_line - 1 : 0;
-                    int count = (new_count > 0) ? new_count : 1;
-
-                    for (int j = 0; j < count; j++) {
-                        GtkTextIter iter;
-                        gtk_text_buffer_get_iter_at_line(GTK_TEXT_BUFFER(text_buffer), &iter, start_line + j);
-                        gtk_source_buffer_create_source_mark(text_buffer, NULL, category, &iter);
-                    }
-                }
-            }
-        }
-        g_strfreev(lines);
-        g_free(output);
-    }
-    g_free(cmd);
 }
 
 static const char *themes[] = { "caecode-dark", "caecode-light" };
@@ -352,7 +361,7 @@ void on_text_changed(GtkTextBuffer *buffer, gpointer user_data) {
     update_status_with_unsaved_mark(!modified); 
 
     // Real-time Git Status update (Sidebar coloring)
-    update_git_status();
+    // Removed because sidebar polling handles directory changes, and typing fires this too often.
 
     // Debounced gutter update
     if (gutter_timeout_id > 0) g_source_remove(gutter_timeout_id);
