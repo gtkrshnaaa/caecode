@@ -1,6 +1,7 @@
 #include "sidebar.h"
 #include "file_ops.h"
 #include "editor.h"
+#include "ui.h"
 #include <dirent.h>
 #include <sys/stat.h>
 #include <string.h>
@@ -239,6 +240,7 @@ void open_folder(const char *path) {
     save_recent_folder(path);
     update_git_status();
     show_editor_view(); // Will show empty state as current_file is empty
+    ui_refresh_terminal_paths(path);
 }
 
 void close_folder() {

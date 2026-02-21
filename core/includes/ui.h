@@ -8,5 +8,6 @@ void set_status_message(const char *message);
 void update_status_with_unsaved_mark(gboolean is_same);
 void update_status_with_relative_path();
 void update_path_bar();
+void ui_refresh_terminal_paths(const char *path);
 
 #endif // UI_H

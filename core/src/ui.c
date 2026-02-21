@@ -460,14 +460,22 @@ static GtkWidget* create_bottom_panel() {
     return vbox;
 }
 
+GtkWidget *bottom_terminal_0 = NULL;
+GtkWidget *right_terminal = NULL;
+
 void create_new_terminal() {
-    static int term_count = 0;
+    static int term_count = -1;
+    term_count++;
     char term_id[32];
-    sprintf(term_id, "term-%d", ++term_count);
+    sprintf(term_id, "term-%d", term_count);
 
     GtkWidget *terminal = vte_terminal_new();
     gtk_widget_set_name(terminal, "vte-terminal");
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(terminal), 10000);
+    
+    if (term_count == 0) {
+        bottom_terminal_0 = terminal;
+    }
     
     char **envp = g_get_environ();
     char **command = (char *[]){ "/bin/bash", NULL };
@@ -492,9 +500,12 @@ void create_new_terminal() {
     GtkWidget *label = gtk_label_new(label_text);
     gtk_box_pack_start(GTK_BOX(row_box), label, TRUE, TRUE, 0);
     
-    GtkWidget *btn_close = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
-    gtk_button_set_relief(GTK_BUTTON(btn_close), GTK_RELIEF_NONE);
-    gtk_box_pack_start(GTK_BOX(row_box), btn_close, FALSE, FALSE, 0);
+    GtkWidget *btn_close = NULL;
+    if (term_count > 0) {
+        btn_close = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
+        gtk_button_set_relief(GTK_BUTTON(btn_close), GTK_RELIEF_NONE);
+        gtk_box_pack_start(GTK_BOX(row_box), btn_close, FALSE, FALSE, 0);
+    }
     gtk_widget_show_all(row_box);
 
     GtkWidget *list_row = gtk_list_box_row_new();
@@ -508,9 +519,11 @@ void create_new_terminal() {
     gtk_list_box_select_row(GTK_LIST_BOX(terminal_list), GTK_LIST_BOX_ROW(list_row));
     
     // Memory/Widget Management
-    g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), scrolled_window);
-    g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), list_row);
-    g_signal_connect_swapped(terminal, "child-exited", G_CALLBACK(gtk_widget_destroy), list_row);
+    if (term_count > 0) {
+        g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), scrolled_window);
+        g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), list_row);
+        g_signal_connect_swapped(terminal, "child-exited", G_CALLBACK(gtk_widget_destroy), list_row);
+    }
 
     // Ensure new terminal inherits correct theme colors
     apply_theme(current_theme_idx);
@@ -523,6 +536,7 @@ static GtkWidget* create_chat_panel() {
     
     // Terminal instance
     GtkWidget *terminal = vte_terminal_new();
+    right_terminal = terminal;
     gtk_widget_set_name(terminal, "vte-terminal-right");
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(terminal), 10000);
     
@@ -541,6 +555,22 @@ static GtkWidget* create_chat_panel() {
     gtk_box_pack_start(GTK_BOX(panel), scrolled_window, TRUE, TRUE, 0);
     
     return panel;
+}
+
+void ui_refresh_terminal_paths(const char *path) {
+    if (!path || strlen(path) == 0) return;
+
+    char *cmd = g_strconcat("cd '", path, "' && clear\n", NULL);
+    
+    if (bottom_terminal_0 && VTE_IS_TERMINAL(bottom_terminal_0)) {
+        vte_terminal_feed_child(VTE_TERMINAL(bottom_terminal_0), cmd, strlen(cmd));
+    }
+    
+    if (right_terminal && VTE_IS_TERMINAL(right_terminal)) {
+        vte_terminal_feed_child(VTE_TERMINAL(right_terminal), cmd, strlen(cmd));
+    }
+
+    g_free(cmd);
 }
 
 void create_main_window() {

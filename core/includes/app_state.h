@@ -29,6 +29,9 @@ extern GtkWidget *terminal_list;
 extern GtkWidget *empty_state;
 extern GtkWidget *path_label;
 
+extern GtkWidget *bottom_terminal_0;
+extern GtkWidget *right_terminal;
+
 // Global State
 extern int current_theme_idx;
 extern char current_file[1024];
