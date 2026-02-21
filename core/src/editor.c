@@ -201,6 +201,20 @@ void apply_theme(int index) {
         }
         g_list_free(children);
 
+        if (chat_panel) {
+            GList *chat_children = gtk_container_get_children(GTK_CONTAINER(chat_panel));
+            for (GList *l = chat_children; l != NULL; l = l->next) {
+                GtkWidget *child = (GtkWidget *)l->data;
+                if (GTK_IS_SCROLLED_WINDOW(child)) {
+                    GtkWidget *terminal = gtk_bin_get_child(GTK_BIN(child));
+                    if (VTE_IS_TERMINAL(terminal)) {
+                        vte_terminal_set_colors(VTE_TERMINAL(terminal), &fg_rgba, &bg_rgba, palette_rgba, 16);
+                    }
+                }
+            }
+            g_list_free(chat_children);
+        }
+
         // Additional terminal-specific CSS
         char *term_css = g_strdup_printf(
             ".terminal-toolbar { background-color: %s; border-bottom: 1px solid %s; }"
