@@ -167,15 +167,17 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer use
 
         // Specialized Terminal Shortcuts
         if (is_terminal) {
-            if (event->keyval == GDK_KEY_c && !shift) {
-                // Pass Ctrl+C to terminal for signal interruption
-                return FALSE;
+            if ((event->keyval == GDK_KEY_c || event->keyval == GDK_KEY_C) && !shift) {
+                // Pass Ctrl+C (without shift) to terminal for SIGINT (cancel process)
+                return FALSE; 
             }
-            if ((event->keyval == GDK_KEY_C || event->keyval == GDK_KEY_c) && shift) {
-                vte_terminal_copy_clipboard(VTE_TERMINAL(focus));
+            if ((event->keyval == GDK_KEY_c || event->keyval == GDK_KEY_C) && shift) {
+                // Ctrl+Shift+C: Copy text from terminal
+                vte_terminal_copy_clipboard_format(VTE_TERMINAL(focus), VTE_FORMAT_TEXT);
                 return TRUE;
             }
-            if ((event->keyval == GDK_KEY_V || event->keyval == GDK_KEY_v) && shift) {
+            if ((event->keyval == GDK_KEY_v || event->keyval == GDK_KEY_V) && shift) {
+                // Ctrl+Shift+V: Paste text into terminal
                 vte_terminal_paste_clipboard(VTE_TERMINAL(focus));
                 return TRUE;
             }
