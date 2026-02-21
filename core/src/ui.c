@@ -518,9 +518,37 @@ static GtkWidget* create_chat_panel() {
     gtk_widget_set_name(panel, "chat-panel");
     gtk_widget_set_size_request(panel, 300, -1);
     
-    GtkWidget *label = gtk_label_new("AI Conversation");
-    gtk_style_context_add_class(gtk_widget_get_style_context(label), "dim-label");
-    gtk_box_pack_start(GTK_BOX(panel), label, TRUE, TRUE, 0);
+    // Header for the right terminal
+    GtkWidget *header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 20);
+    gtk_style_context_add_class(gtk_widget_get_style_context(header), "terminal-toolbar");
+    
+    GtkWidget *title = gtk_label_new("TERMINAL (AI/EXTRA)");
+    gtk_widget_set_name(title, "terminal-header-item");
+    gtk_style_context_add_class(gtk_widget_get_style_context(title), "terminal-header-item");
+    gtk_style_context_add_class(gtk_widget_get_style_context(title), "active");
+    gtk_box_pack_start(GTK_BOX(header), title, FALSE, FALSE, 0);
+    gtk_widget_set_margin_start(title, 10);
+    
+    gtk_box_pack_start(GTK_BOX(panel), header, FALSE, FALSE, 0);
+
+    // Terminal instance
+    GtkWidget *terminal = vte_terminal_new();
+    gtk_widget_set_name(terminal, "vte-terminal-right");
+    vte_terminal_set_scrollback_lines(VTE_TERMINAL(terminal), 10000);
+    
+    char **envp = g_get_environ();
+    char **command = (char *[]){ "/bin/bash", NULL };
+    const char *work_dir = (strlen(current_folder) > 0) ? current_folder : NULL;
+
+    vte_terminal_spawn_async(VTE_TERMINAL(terminal), VTE_PTY_DEFAULT, work_dir, command, envp, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, -1, NULL, NULL, NULL);
+    g_strfreev(envp);
+
+    GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+    gtk_container_add(GTK_CONTAINER(scrolled_window), terminal);
+    gtk_widget_show_all(scrolled_window);
+    
+    // Add to main panel box
+    gtk_box_pack_start(GTK_BOX(panel), scrolled_window, TRUE, TRUE, 0);
     
     return panel;
 }
