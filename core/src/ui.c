@@ -454,6 +454,9 @@ static GtkWidget* create_bottom_panel() {
 
     gtk_box_pack_start(GTK_BOX(vbox), h_paned, TRUE, TRUE, 0);
     
+    // Make bottom panel visible immediately
+    gtk_widget_show_all(vbox);
+    
     return vbox;
 }
 
