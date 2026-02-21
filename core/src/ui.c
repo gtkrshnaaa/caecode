@@ -684,10 +684,10 @@ void create_main_window() {
     gtk_window_set_default_size(GTK_WINDOW(window), win_width, win_height);
 
     if (strlen(current_folder) == 0) show_welcome_screen(); 
-    else {
-        show_editor_view();
-        create_new_terminal(); 
-    }
+    else show_editor_view();
+    
+    // Always create at least one bottom terminal on startup
+    create_new_terminal(); 
 
     // Defaults (Dynamic proportions)
     gtk_paned_set_position(GTK_PANED(inner_h_paned), 280);                    // Sidebar fix
@@ -706,4 +706,8 @@ void create_main_window() {
     g_signal_connect(window, "key-press-event", G_CALLBACK(on_key_press), NULL);
 
     gtk_widget_show_all(window);
+
+    // Force theme application after all widgets are realized to ensure the
+    // right panel terminal and the initial bottom terminal receive the CSS
+    apply_theme(current_theme_idx);
 }
