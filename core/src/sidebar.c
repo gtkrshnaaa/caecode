@@ -454,6 +454,10 @@ void close_folder() {
         g_hash_table_destroy(expanded_paths);
         expanded_paths = NULL;
     }
+    if (global_git_status) {
+        g_hash_table_destroy(global_git_status);
+        global_git_status = NULL;
+    }
     stop_population_if_running();
     gtk_tree_store_clear(tree_store);
     g_list_free_full(file_list, g_free);

@@ -245,7 +245,9 @@ void apply_theme(int index) {
         g_object_unref(ts_provider);
         g_free(term_css);
 
-        set_status_message(g_strdup_printf("Theme: %s", themes[current_theme_idx]));
+        char *msg = g_strdup_printf("Theme: %s", themes[current_theme_idx]);
+        set_status_message(msg);
+        g_free(msg);
     }
 }
 
