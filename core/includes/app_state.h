@@ -6,7 +6,7 @@
 #include <vte/vte.h>
 
 // Version and Constants
-#define VERSION "0.1.2"
+#define VERSION "0.1.3"
 
 // Global UI Widgets (externed for module access)
 extern GtkWidget *window;
