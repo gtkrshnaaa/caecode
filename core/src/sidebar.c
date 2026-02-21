@@ -30,29 +30,61 @@ static gboolean background_git_poll(gpointer data) {
     return TRUE; // Continue polling
 }
 
-static void update_tree_colors_recursive(GtkTreeModel *model, GtkTreeIter *iter, GHashTable *git_status) {
+// Bitmasks for Git status
+#define GIT_STATUS_NONE 0
+#define GIT_STATUS_MODIFIED 1
+#define GIT_STATUS_ADDED 2
+#define GIT_STATUS_UNTRACKED 4
+
+static int update_tree_colors_recursive(GtkTreeModel *model, GtkTreeIter *iter, GHashTable *git_status) {
+    int aggregate_status = GIT_STATUS_NONE;
+    
     do {
         char *path;
         gtk_tree_model_get(model, iter, 2, &path, -1);
         
+        int current_node_status = GIT_STATUS_NONE;
         const char *status = g_hash_table_lookup(git_status, path);
         const char *color = NULL;
+        const char *letter = "";
 
         if (status) {
-            // Check for M (modified), A (added), ?? (untracked)
-            if (strstr(status, "M")) color = "#E2C08D"; // Yellow
-            else if (strstr(status, "A") || strstr(status, "?")) color = "#73C991"; // Green
+            if (strstr(status, "M")) {
+                current_node_status |= GIT_STATUS_MODIFIED;
+                color = "#E2C08D"; // Yellow
+                letter = "M";
+            } else if (strstr(status, "A")) {
+                current_node_status |= GIT_STATUS_ADDED;
+                color = "#73C991"; // Green
+                letter = "A";
+            } else if (strstr(status, "?")) {
+                current_node_status |= GIT_STATUS_UNTRACKED;
+                color = "#73C991"; // Green
+                letter = "U";
+            }
         }
-        
-        gtk_tree_store_set(GTK_TREE_STORE(model), iter, 3, color, -1);
         
         GtkTreeIter child;
+        int children_status = GIT_STATUS_NONE;
         if (gtk_tree_model_iter_children(model, &child, iter)) {
-            update_tree_colors_recursive(model, &child, git_status);
+            children_status = update_tree_colors_recursive(model, &child, git_status);
         }
         
+        // If the current node isn't explicitly colored, but its children have changes, bubble up the color.
+        // We do NOT bubble up the letter, only the color, just like VSCode for parent folders.
+        if (!color && children_status != GIT_STATUS_NONE) {
+            if (children_status & GIT_STATUS_MODIFIED) color = "#E2C08D";
+            else if ((children_status & GIT_STATUS_ADDED) || (children_status & GIT_STATUS_UNTRACKED)) color = "#73C991";
+        }
+
+        gtk_tree_store_set(GTK_TREE_STORE(model), iter, 3, color, 4, letter, -1);
+        
+        aggregate_status |= current_node_status | children_status;
         g_free(path);
+        
     } while (gtk_tree_model_iter_next(model, iter));
+    
+    return aggregate_status;
 }
 
 typedef struct {
@@ -414,7 +446,8 @@ static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColu
 GtkTreeViewColumn *sidebar_column = NULL;
 
 void init_sidebar() {
-    tree_store = gtk_tree_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    // 0: icon-name, 1: name, 2: path, 3: color, 4: git-status-letter
+    tree_store = gtk_tree_store_new(5, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
     tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(tree_store));
     
     // Enable single-click activation
@@ -432,6 +465,13 @@ void init_sidebar() {
     gtk_tree_view_column_pack_start(column, text_renderer, TRUE);
     gtk_tree_view_column_add_attribute(column, text_renderer, "text", 1);
     gtk_tree_view_column_add_attribute(column, text_renderer, "foreground", 3);
+
+    // Git Status Letter (right-aligned)
+    GtkCellRenderer *status_renderer = gtk_cell_renderer_text_new();
+    g_object_set(status_renderer, "xalign", 1.0, NULL);
+    gtk_tree_view_column_pack_start(column, status_renderer, FALSE);
+    gtk_tree_view_column_add_attribute(column, status_renderer, "text", 4);
+    gtk_tree_view_column_add_attribute(column, status_renderer, "foreground", 3);
 
     gtk_tree_view_append_column(GTK_TREE_VIEW(tree_view), column);
 
