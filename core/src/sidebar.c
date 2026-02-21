@@ -283,8 +283,7 @@ static gboolean debounced_refresh(gpointer data) {
 }
 
 static void on_folder_changed(GFileMonitor *monitor, GFile *file, GFile *other_file, GFileMonitorEvent event_type, gpointer user_data) {
-    if (event_type == G_FILE_MONITOR_EVENT_CHANGES_DONE_HINT || 
-        event_type == G_FILE_MONITOR_EVENT_CREATED || 
+    if (event_type == G_FILE_MONITOR_EVENT_CREATED || 
         event_type == G_FILE_MONITOR_EVENT_DELETED ||
         event_type == G_FILE_MONITOR_EVENT_RENAMED ||
         event_type == G_FILE_MONITOR_EVENT_MOVED) {
@@ -364,7 +363,20 @@ void close_folder() {
 
 void reload_sidebar() {
     if (strlen(current_folder) > 0) {
-        open_folder(current_folder);
+        stop_population_if_running();
+        gtk_tree_store_clear(tree_store);
+        g_list_free_full(file_list, g_free);
+        file_list = NULL;
+
+        populate_ctx = g_new0(PopulateContext, 1);
+        populate_ctx->queue = g_queue_new();
+
+        DirTask *root_task = g_new0(DirTask, 1);
+        root_task->path = g_strdup(current_folder);
+        root_task->has_parent = FALSE;
+        g_queue_push_tail(populate_ctx->queue, root_task);
+
+        populate_ctx->source_id = g_idle_add(populate_step, NULL);
     }
 }
 

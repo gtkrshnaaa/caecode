@@ -9,7 +9,9 @@ static guint autosave_timeout_id = 0;
 
 static gboolean on_autosave_timer(gpointer data) {
     autosave_timeout_id = 0;
-    save_file();
+    if (gtk_text_buffer_get_modified(GTK_TEXT_BUFFER(text_buffer))) {
+        save_file();
+    }
     return FALSE;
 }
 
