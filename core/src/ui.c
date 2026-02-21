@@ -605,6 +605,11 @@ void create_main_window() {
 
     gtk_box_pack_start(GTK_BOX(vbox), main_h_paned, TRUE, TRUE, 0);
 
+    // Status bar (create early so modules like terminals can log messages during init)
+    status_bar = gtk_statusbar_new();
+    gtk_box_pack_start(GTK_BOX(vbox), status_bar, FALSE, FALSE, 0);
+    set_status_message("Welcome to Caecode");
+
     // Initialize Global CSS Provider before modules that use it
     app_css_provider = gtk_css_provider_new();
     GtkStyleContext *screen_ctx = gtk_widget_get_style_context(window);
@@ -732,11 +737,6 @@ void create_main_window() {
     gtk_paned_set_position(GTK_PANED(nested_v_paned), win_height * 0.65);     // Editor vs Terminal
     gtk_paned_set_position(GTK_PANED(main_h_paned), win_width - 300);          // Right Chat area
 
-
-    // Status bar
-    status_bar = gtk_statusbar_new();
-    gtk_box_pack_start(GTK_BOX(vbox), status_bar, FALSE, FALSE, 0);
-    set_status_message("Welcome to Caecode");
 
     init_search_popup();
 
