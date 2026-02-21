@@ -9,5 +9,6 @@ void reload_sidebar();
 void close_folder();
 void collapse_all_folders();
 void update_git_status();
+const char* get_git_status_letter(const char *path);
 
 #endif // SIDEBAR_H

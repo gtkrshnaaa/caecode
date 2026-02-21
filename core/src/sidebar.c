@@ -23,6 +23,18 @@ static PopulateContext *populate_ctx = NULL;
 static GFileMonitor *folder_monitor = NULL;
 static guint refresh_timeout_id = 0;
 static guint git_poll_timeout_id = 0;
+static GHashTable *global_git_status = NULL;
+
+const char* get_git_status_letter(const char *path) {
+    if (!global_git_status || !path) return "";
+    const char *status = g_hash_table_lookup(global_git_status, path);
+    if (!status) return "";
+    
+    if (strstr(status, "M")) return "M";
+    if (strstr(status, "A")) return "A";
+    if (strstr(status, "?")) return "U";
+    return "";
+}
 
 static gboolean background_git_poll(gpointer data) {
     update_git_status();
@@ -168,7 +180,22 @@ static void on_git_status_spliced(GObject *source, GAsyncResult *res, gpointer u
             if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(tree_store), &iter)) {
                 update_tree_colors_recursive(GTK_TREE_MODEL(tree_store), &iter, git_status);
             }
-            g_hash_table_destroy(git_status);
+
+            // Sync with global cache for UI bars
+            if (global_git_status) g_hash_table_destroy(global_git_status);
+            global_git_status = git_status;
+            
+            // Refresh UI bars
+            update_path_bar();
+            update_status_with_unsaved_mark(!gtk_text_buffer_get_modified(GTK_TEXT_BUFFER(text_buffer)));
+        } else {
+            // No git results, clear global status
+            if (global_git_status) {
+                g_hash_table_destroy(global_git_status);
+                global_git_status = NULL;
+            }
+            update_path_bar();
+            update_status_with_unsaved_mark(!gtk_text_buffer_get_modified(GTK_TEXT_BUFFER(text_buffer)));
         }
     }
     if (splice_err) g_error_free(splice_err);

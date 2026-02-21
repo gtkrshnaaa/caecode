@@ -78,8 +78,14 @@ void update_status_with_unsaved_mark(gboolean is_same) {
         snprintf(relative_path, sizeof(relative_path), "%s", current_file);
     }
 
-    char display_path[1050];
-    snprintf(display_path, sizeof(display_path), "%s%s", relative_path, is_same ? "" : " *");
+    const char *git_status = get_git_status_letter(current_file);
+    char status_indicator[16] = "";
+    if (strlen(git_status) > 0) {
+        snprintf(status_indicator, sizeof(status_indicator), " [%s]", git_status);
+    }
+
+    char display_path[1100];
+    snprintf(display_path, sizeof(display_path), "%s%s%s", relative_path, status_indicator, is_same ? "" : " *");
     set_status_message(display_path);
 }
 
@@ -95,8 +101,16 @@ void update_path_bar() {
         display_path = current_file + strlen(current_folder);
         if (display_path[0] == '/') display_path++;
     }
+
+    const char *git_status = get_git_status_letter(current_file);
+    char full_display[1100];
+    if (strlen(git_status) > 0) {
+        snprintf(full_display, sizeof(full_display), "%s [%s]", display_path, git_status);
+    } else {
+        snprintf(full_display, sizeof(full_display), "%s", display_path);
+    }
     
-    gtk_label_set_text(GTK_LABEL(path_label), display_path);
+    gtk_label_set_text(GTK_LABEL(path_label), full_display);
 }
 
 static void move_cursor_up() {
