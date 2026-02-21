@@ -533,6 +533,7 @@ void init_sidebar() {
     gtk_tree_view_column_add_attribute(column, icon_renderer, "icon-name", 0);
 
     GtkCellRenderer *text_renderer = gtk_cell_renderer_text_new();
+    g_object_set(text_renderer, "ellipsize", PANGO_ELLIPSIZE_END, NULL);
     gtk_tree_view_column_pack_start(column, text_renderer, TRUE);
     gtk_tree_view_column_add_attribute(column, text_renderer, "text", 1);
     gtk_tree_view_column_add_attribute(column, text_renderer, "foreground", 3);
