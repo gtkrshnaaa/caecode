@@ -562,7 +562,8 @@ static GtkWidget* create_chat_panel() {
 void ui_refresh_terminal_paths(const char *path) {
     if (!path || strlen(path) == 0) return;
 
-    char *cmd = g_strconcat("cd '", path, "' && clear\n", NULL);
+    char *quoted_path = g_shell_quote(path);
+    char *cmd = g_strdup_printf("cd %s && clear\n", quoted_path);
     
     if (bottom_terminal_0 && VTE_IS_TERMINAL(bottom_terminal_0)) {
         vte_terminal_feed_child(VTE_TERMINAL(bottom_terminal_0), cmd, strlen(cmd));
@@ -573,6 +574,7 @@ void ui_refresh_terminal_paths(const char *path) {
     }
 
     g_free(cmd);
+    g_free(quoted_path);
 }
 
 void create_main_window() {
