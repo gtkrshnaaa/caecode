@@ -521,19 +521,6 @@ static GtkWidget* create_chat_panel() {
     gtk_widget_set_name(panel, "chat-panel");
     gtk_widget_set_size_request(panel, 300, -1);
     
-    // Header for the right terminal
-    GtkWidget *header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 20);
-    gtk_style_context_add_class(gtk_widget_get_style_context(header), "terminal-toolbar");
-    
-    GtkWidget *title = gtk_label_new("TERMINAL (AI/EXTRA)");
-    gtk_widget_set_name(title, "terminal-header-item");
-    gtk_style_context_add_class(gtk_widget_get_style_context(title), "terminal-header-item");
-    gtk_style_context_add_class(gtk_widget_get_style_context(title), "active");
-    gtk_box_pack_start(GTK_BOX(header), title, FALSE, FALSE, 0);
-    gtk_widget_set_margin_start(title, 10);
-    
-    gtk_box_pack_start(GTK_BOX(panel), header, FALSE, FALSE, 0);
-
     // Terminal instance
     GtkWidget *terminal = vte_terminal_new();
     gtk_widget_set_name(terminal, "vte-terminal-right");
