@@ -227,6 +227,47 @@ static void add_to_tree(const char *path, const char *name, const char *icon_nam
     gtk_tree_store_set(tree_store, iter, 0, icon_name, 1, name, 2, path, 3, NULL, -1);
 }
 
+static GHashTable *expanded_paths = NULL;
+
+static void save_expanded_state_recursive(GtkTreeModel *model, GtkTreeIter *iter) {
+    do {
+        char *path;
+        gtk_tree_model_get(model, iter, 2, &path, -1);
+        GtkTreePath *tree_path = gtk_tree_model_get_path(model, iter);
+        
+        if (gtk_tree_view_row_expanded(GTK_TREE_VIEW(tree_view), tree_path)) {
+            g_hash_table_add(expanded_paths, g_strdup(path));
+        }
+        
+        gtk_tree_path_free(tree_path);
+        g_free(path);
+        
+        GtkTreeIter child;
+        if (gtk_tree_model_iter_children(model, &child, iter)) {
+            save_expanded_state_recursive(model, &child);
+        }
+    } while (gtk_tree_model_iter_next(model, iter));
+}
+
+static void restore_expanded_state_recursive(GtkTreeModel *model, GtkTreeIter *iter) {
+    do {
+        char *path;
+        gtk_tree_model_get(model, iter, 2, &path, -1);
+        
+        if (g_hash_table_contains(expanded_paths, path)) {
+            GtkTreePath *tree_path = gtk_tree_model_get_path(model, iter);
+            gtk_tree_view_expand_row(GTK_TREE_VIEW(tree_view), tree_path, FALSE);
+            gtk_tree_path_free(tree_path);
+        }
+        g_free(path);
+        
+        GtkTreeIter child;
+        if (gtk_tree_model_iter_children(model, &child, iter)) {
+            restore_expanded_state_recursive(model, &child);
+        }
+    } while (gtk_tree_model_iter_next(model, iter));
+}
+
 static gboolean populate_step(gpointer data) {
     if (!populate_ctx || populate_ctx->cancelled) return FALSE;
 
@@ -302,6 +343,17 @@ static gboolean populate_step(gpointer data) {
 
     if (g_queue_is_empty(populate_ctx->queue)) {
         populate_ctx->source_id = 0;
+        
+        // Restore expansion state
+        if (expanded_paths) {
+            GtkTreeIter root_iter;
+            if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(tree_store), &root_iter)) {
+                restore_expanded_state_recursive(GTK_TREE_MODEL(tree_store), &root_iter);
+            }
+            g_hash_table_destroy(expanded_paths);
+            expanded_paths = NULL; // Clear for next run
+        }
+
         update_git_status(); // Trigger git update once the tree is fully built
         return FALSE;
     }
@@ -326,6 +378,10 @@ static void on_folder_changed(GFileMonitor *monitor, GFile *file, GFile *other_f
 }
 
 void open_folder(const char *path) {
+    if (expanded_paths) {
+        g_hash_table_destroy(expanded_paths);
+        expanded_paths = NULL;
+    }
     stop_population_if_running();
     gtk_tree_store_clear(tree_store);
     g_list_free_full(file_list, g_free);
@@ -367,6 +423,10 @@ void open_folder(const char *path) {
 }
 
 void close_folder() {
+    if (expanded_paths) {
+        g_hash_table_destroy(expanded_paths);
+        expanded_paths = NULL;
+    }
     stop_population_if_running();
     gtk_tree_store_clear(tree_store);
     g_list_free_full(file_list, g_free);
@@ -395,6 +455,17 @@ void close_folder() {
 
 void reload_sidebar() {
     if (strlen(current_folder) > 0) {
+        if (!expanded_paths) {
+            expanded_paths = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+        } else {
+            g_hash_table_remove_all(expanded_paths);
+        }
+        
+        GtkTreeIter root_iter;
+        if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(tree_store), &root_iter)) {
+            save_expanded_state_recursive(GTK_TREE_MODEL(tree_store), &root_iter);
+        }
+        
         stop_population_if_running();
         gtk_tree_store_clear(tree_store);
         g_list_free_full(file_list, g_free);
