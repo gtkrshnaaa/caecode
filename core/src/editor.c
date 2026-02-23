@@ -186,7 +186,7 @@ void apply_theme(int index) {
             "treeview:selected { background-color: %s; }"
             "statusbar { border-top: 1px solid %s; }"
             ".dim-label { opacity: 0.6; }"
-            "#source-view { font-weight: bold; }",
+            "#source-view text { font-weight: 600; }",
             bg_color, fg_color,
             (current_theme_idx == 0) ? "#252525" : "#F3F3F3", // sidebar header bg
             (current_theme_idx == 0) ? "#333333" : "#DDDDDD", // sidebar header border
