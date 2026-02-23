@@ -312,7 +312,6 @@ static gboolean populate_step(gpointer data) {
 
         while ((entry = readdir(dir))) {
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
-            if (entry->d_name[0] == '.') continue;
 
             char *name = g_strdup(entry->d_name);
             char full_path[1024];
@@ -321,8 +320,14 @@ static gboolean populate_step(gpointer data) {
             struct stat st;
             if (stat(full_path, &st) == 0) {
                 if (S_ISDIR(st.st_mode)) {
+                    // Skip hidden directories (starting with .)
+                    if (entry->d_name[0] == '.') {
+                        g_free(name);
+                        continue;
+                    }
                     subdirs = g_list_insert_sorted(subdirs, name, (GCompareFunc)g_ascii_strcasecmp);
                 } else {
+                    // Allow hidden files (starting with .), they will be added to files list
                     files = g_list_insert_sorted(files, name, (GCompareFunc)g_ascii_strcasecmp);
                 }
             } else {
