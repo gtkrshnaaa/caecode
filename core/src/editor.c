@@ -375,3 +375,14 @@ void on_text_changed(GtkTextBuffer *buffer, gpointer user_data) {
     if (autosave_timeout_id > 0) g_source_remove(autosave_timeout_id);
     autosave_timeout_id = g_timeout_add(1000, on_autosave_timer, NULL);
 }
+
+void cleanup_editor() {
+    if (autosave_timeout_id > 0) {
+        g_source_remove(autosave_timeout_id);
+        autosave_timeout_id = 0;
+    }
+    if (gutter_timeout_id > 0) {
+        g_source_remove(gutter_timeout_id);
+        gutter_timeout_id = 0;
+    }
+}

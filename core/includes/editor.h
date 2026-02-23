@@ -8,5 +8,6 @@ void apply_theme(int index);
 void switch_theme();
 void on_text_changed(GtkTextBuffer *buffer, gpointer user_data);
 void update_git_gutter();
+void cleanup_editor();
 
 #endif // EDITOR_H
