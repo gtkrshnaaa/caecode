@@ -187,7 +187,9 @@ void apply_theme(int index) {
             "selection { background-color: rgba(53, 132, 228, 0.2); }"
             "statusbar { border-top: 1px solid %s; }"
             ".dim-label { opacity: 0.6; }"
-            "#source-view text { font-weight: 600; }",
+            "#source-view text { font-weight: 600; }"
+            "treeview row:hover, list row:hover, row:hover { background-color: %s; }"
+            "button:hover { background-color: %s; }",
             bg_color, fg_color,
             (current_theme_idx == 0) ? "#252525" : "#F3F3F3", // sidebar header bg
             (current_theme_idx == 0) ? "#333333" : "#DDDDDD", // sidebar header border
@@ -195,7 +197,9 @@ void apply_theme(int index) {
             (current_theme_idx == 0) ? "#252525" : "#F8F8F8", // path bar bg (subtle)
             (current_theme_idx == 0) ? "#2a2a2a" : "#EEEEEE", // path bar border
             fg_color, // path label color
-            (current_theme_idx == 0) ? "#222222" : "#DDDDDD"  // statusbar border
+            (current_theme_idx == 0) ? "#222222" : "#DDDDDD", // statusbar border
+            (current_theme_idx == 0) ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)", // row hover
+            (current_theme_idx == 0) ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"  // button hover
         );
         
         gtk_css_provider_load_from_data(app_css_provider, css_data, -1, NULL);
