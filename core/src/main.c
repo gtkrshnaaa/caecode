@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include "sidebar.h"
+#include "editor.h"
 
 static gboolean invoke_initial_folder_open(gpointer data) {
     char *path = (char *)data;
@@ -48,7 +49,9 @@ int main(int argc, char **argv) {
     
     gtk_main();
 
-    // Cleanup
+    // Cleanup: stop all timers and async operations before destroying widgets
+    cleanup_sidebar();
+    cleanup_editor();
     close_folder();
     if (last_saved_content) g_free(last_saved_content);
     if (current_file_row_ref) gtk_tree_row_reference_free(current_file_row_ref);
