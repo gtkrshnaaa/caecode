@@ -185,7 +185,8 @@ void apply_theme(int index) {
             "treeview { padding-bottom: 100px; }"
             "treeview:selected { background-color: %s; }"
             "statusbar { border-top: 1px solid %s; }"
-            ".dim-label { opacity: 0.6; }",
+            ".dim-label { opacity: 0.6; }"
+            "#source-view { font-weight: bold; }",
             bg_color, fg_color,
             (current_theme_idx == 0) ? "#252525" : "#F3F3F3", // sidebar header bg
             (current_theme_idx == 0) ? "#333333" : "#DDDDDD", // sidebar header border
@@ -258,6 +259,7 @@ void switch_theme() {
 void init_editor() {
     text_buffer = gtk_source_buffer_new(NULL);
     source_view = GTK_SOURCE_VIEW(gtk_source_view_new_with_buffer(text_buffer));
+    gtk_widget_set_name(GTK_WIDGET(source_view), "source-view");
     
     // Configure editor
     gtk_source_view_set_show_line_numbers(source_view, TRUE);
