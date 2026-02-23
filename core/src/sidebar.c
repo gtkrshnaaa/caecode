@@ -571,6 +571,23 @@ static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColu
                     gtk_tree_view_expand_row(tv, path, FALSE);
                 }
             } else if (S_ISREG(st.st_mode)) {
+                // Check extension for binary files (images, pdfs)
+                const char *ext = strrchr(filepath, '.');
+                if (ext) {
+                    if (g_ascii_strcasecmp(ext, ".png") == 0 ||
+                        g_ascii_strcasecmp(ext, ".jpg") == 0 ||
+                        g_ascii_strcasecmp(ext, ".jpeg") == 0 ||
+                        g_ascii_strcasecmp(ext, ".gif") == 0 ||
+                        g_ascii_strcasecmp(ext, ".bmp") == 0 ||
+                        g_ascii_strcasecmp(ext, ".pdf") == 0) {
+                        
+                        char *argv[] = { "xdg-open", filepath, NULL };
+                        g_spawn_async(NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL);
+                        g_free(filepath);
+                        gtk_tree_path_free(path);
+                        return; // Prevent fallback to text editor
+                    }
+                }
                 load_file_async(filepath);
             }
         }
