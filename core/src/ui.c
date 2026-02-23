@@ -25,6 +25,8 @@ GtkWidget *terminal_stack;
 GtkWidget *terminal_list;
 GtkWidget *empty_state;
 GtkWidget *path_label;
+GtkWidget *status_left_label;
+GtkWidget *status_right_label;
 
 int current_theme_idx = 0;
 char current_file[1024] = "";
@@ -34,10 +36,38 @@ char *last_saved_content = NULL;
 static GtkWidget *sidebar_scrolled_window;
 static gboolean sidebar_visible = TRUE;
 
+void update_advanced_status_bar() {
+    if (!status_left_label || !status_right_label) return;
+
+    // LEFT: Git Branch
+    const char *branch = get_git_branch();
+    gtk_label_set_text(GTK_LABEL(status_left_label), branch);
+
+    // RIGHT: Line count | Encoding | Language
+    int line_count = 1;
+    if (text_buffer) {
+        line_count = gtk_text_buffer_get_line_count(GTK_TEXT_BUFFER(text_buffer));
+    }
+
+    const char *lang_name = "unknown";
+    if (text_buffer) {
+        GtkSourceLanguage *lang = gtk_source_buffer_get_language(GTK_SOURCE_BUFFER(text_buffer));
+        if (lang) {
+            lang_name = gtk_source_language_get_name(lang);
+        }
+    }
+
+    char right_text[256];
+    snprintf(right_text, sizeof(right_text), "Line: %d | UTF-8 | %s", line_count, lang_name);
+    gtk_label_set_text(GTK_LABEL(status_right_label), right_text);
+}
+
 void set_status_message(const char *message) {
-    GtkStatusbar *sb = GTK_STATUSBAR(status_bar);
-    gtk_statusbar_pop(sb, 0);
-    gtk_statusbar_push(sb, 0, message);
+    // Legacy support: redirect to left bar or if no file opened
+    if (strlen(current_file) == 0 && status_left_label) {
+        gtk_label_set_text(GTK_LABEL(status_left_label), message);
+    }
+    update_advanced_status_bar();
 }
 
 void update_status_with_relative_path() {
@@ -615,8 +645,22 @@ void create_main_window() {
 
     gtk_box_pack_start(GTK_BOX(vbox), main_h_paned, TRUE, TRUE, 0);
 
-    // Status bar (create early so modules like terminals can log messages during init)
-    status_bar = gtk_statusbar_new();
+    // Advanced Status Bar (v0.2.6)
+    status_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_name(status_bar, "status-bar-box");
+    
+    status_left_label = gtk_label_new("Welcome to Caecode");
+    gtk_widget_set_margin_start(status_left_label, 10);
+    gtk_widget_set_margin_top(status_left_label, 5);
+    gtk_widget_set_margin_bottom(status_left_label, 5);
+    gtk_box_pack_start(GTK_BOX(status_bar), status_left_label, FALSE, FALSE, 0);
+
+    status_right_label = gtk_label_new("");
+    gtk_widget_set_margin_end(status_right_label, 10);
+    gtk_widget_set_margin_top(status_right_label, 5);
+    gtk_widget_set_margin_bottom(status_right_label, 5);
+    gtk_box_pack_end(GTK_BOX(status_bar), status_right_label, FALSE, FALSE, 0);
+
     gtk_box_pack_start(GTK_BOX(vbox), status_bar, FALSE, FALSE, 0);
     set_status_message("Welcome to Caecode");
 

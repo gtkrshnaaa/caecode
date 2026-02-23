@@ -33,6 +33,9 @@ extern GtkWidget *path_label;
 extern GtkWidget *bottom_terminal_0;
 extern GtkWidget *right_terminal;
 
+extern GtkWidget *status_left_label;
+extern GtkWidget *status_right_label;
+
 // Global State
 extern int current_theme_idx;
 extern char current_file[1024];

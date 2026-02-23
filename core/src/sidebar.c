@@ -24,6 +24,34 @@ static GFileMonitor *folder_monitor = NULL;
 static guint refresh_timeout_id = 0;
 static guint git_poll_timeout_id = 0;
 static GHashTable *global_git_status = NULL;
+static char current_git_branch[256] = "";
+
+const char* get_git_branch() {
+    if (strlen(current_git_branch) == 0) return "unknown";
+    return current_git_branch;
+}
+
+static void update_git_branch() {
+    if (strlen(current_folder) == 0) {
+        current_git_branch[0] = '\0';
+        return;
+    }
+
+    char *argv[] = { "git", "-C", current_folder, "rev-parse", "--abbrev-ref", "HEAD", NULL };
+    gchar *stdout_text = NULL;
+    GError *error = NULL;
+
+    if (g_spawn_sync(current_folder, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, &stdout_text, NULL, NULL, &error)) {
+        if (stdout_text) {
+            char *trimmed = g_strstrip(stdout_text);
+            strncpy(current_git_branch, trimmed, sizeof(current_git_branch) - 1);
+            g_free(stdout_text);
+        }
+    } else {
+        current_git_branch[0] = '\0';
+        if (error) g_error_free(error);
+    }
+}
 
 const char* get_git_status_letter(const char *path) {
     if (!global_git_status || !path) return "";
@@ -38,6 +66,7 @@ const char* get_git_status_letter(const char *path) {
 
 static gboolean background_git_poll(gpointer data) {
     update_git_status();
+    update_git_branch();
     update_git_gutter();
     return TRUE; // Continue polling
 }

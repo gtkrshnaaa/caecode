@@ -175,7 +175,7 @@ void apply_theme(int index) {
         for (int i = 0; i < 16; i++) gdk_rgba_parse(&palette_rgba[i], palette_str[i]);
 
         char *css_data = g_strdup_printf(
-            "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar, #welcome-screen, #bottom-panel, #chat-panel { background-color: %s; color: %s; }"
+            "#sidebar-scrolledwindow, #sidebar-scrolledwindow viewport, treeview, statusbar, #status-bar-box, #welcome-screen, #bottom-panel, #chat-panel { background-color: %s; color: %s; }"
             "#sidebar-header { background-color: %s; border-bottom: 1px solid %s; }"
             "#sidebar-title { font-size: 9pt; font-weight: bold; color: %s; opacity: 0.6; }"
             "#sidebar-header button { opacity: 0.6; }"
@@ -185,7 +185,7 @@ void apply_theme(int index) {
             "treeview { padding-bottom: 100px; }"
             "treeview:selected, list row:selected, row:selected { background-color: rgba(53, 132, 228, 0.2); color: inherit; }"
             "selection { background-color: rgba(53, 132, 228, 0.2); }"
-            "statusbar { border-top: 1px solid %s; }"
+            "statusbar, #status-bar-box { border-top: 1px solid %s; }"
             ".dim-label { opacity: 0.6; }"
             "#source-view text { font-weight: 600; }"
             "treeview.view row:hover, list row:hover, row:hover { background-color: %s !important; }"
@@ -380,6 +380,8 @@ void on_text_changed(GtkTextBuffer *buffer, gpointer user_data) {
     // Debounced AutoSave (1 second)
     if (autosave_timeout_id > 0) g_source_remove(autosave_timeout_id);
     autosave_timeout_id = g_timeout_add(1000, on_autosave_timer, NULL);
+
+    update_advanced_status_bar();
 }
 
 void cleanup_editor() {
