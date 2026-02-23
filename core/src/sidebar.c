@@ -158,45 +158,39 @@ static void on_git_status_spliced(GObject *source, GAsyncResult *res, gpointer u
     GError *splice_err = NULL;
     if (g_output_stream_splice_finish(out, res, &splice_err) >= 0) {
         gsize size = g_memory_output_stream_get_data_size(G_MEMORY_OUTPUT_STREAM(out));
+
+        GHashTable *git_status = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+
         if (size > 0) {
             char *output = g_strndup(g_memory_output_stream_get_data(G_MEMORY_OUTPUT_STREAM(out)), size);
-            
-            GHashTable *git_status = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
             char **lines = g_strsplit(output, "\n", -1);
-            
+
             for (int i = 0; lines[i] && strlen(lines[i]) > 3; i++) {
                 char status[3];
                 strncpy(status, lines[i], 2);
                 status[2] = '\0';
-                
+
                 char *rel_path = lines[i] + 3;
                 char *abs_path = g_build_filename(current_folder, rel_path, NULL);
                 g_hash_table_insert(git_status, abs_path, g_strdup(status));
             }
             g_strfreev(lines);
             g_free(output);
-
-            GtkTreeIter iter;
-            if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(tree_store), &iter)) {
-                update_tree_colors_recursive(GTK_TREE_MODEL(tree_store), &iter, git_status);
-            }
-
-            // Sync with global cache for UI bars
-            if (global_git_status) g_hash_table_destroy(global_git_status);
-            global_git_status = git_status;
-            
-            // Refresh UI bars
-            update_path_bar();
-            update_status_with_unsaved_mark(!gtk_text_buffer_get_modified(GTK_TEXT_BUFFER(text_buffer)));
-        } else {
-            // No git results, clear global status
-            if (global_git_status) {
-                g_hash_table_destroy(global_git_status);
-                global_git_status = NULL;
-            }
-            update_path_bar();
-            update_status_with_unsaved_mark(!gtk_text_buffer_get_modified(GTK_TEXT_BUFFER(text_buffer)));
         }
+
+        // Always refresh tree colors to clear stale indicators
+        GtkTreeIter iter;
+        if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(tree_store), &iter)) {
+            update_tree_colors_recursive(GTK_TREE_MODEL(tree_store), &iter, git_status);
+        }
+
+        // Sync with global cache for UI bars
+        if (global_git_status) g_hash_table_destroy(global_git_status);
+        global_git_status = git_status;
+
+        // Refresh UI bars
+        update_path_bar();
+        update_status_with_unsaved_mark(!gtk_text_buffer_get_modified(GTK_TEXT_BUFFER(text_buffer)));
     }
     if (splice_err) g_error_free(splice_err);
     g_object_unref(out);
