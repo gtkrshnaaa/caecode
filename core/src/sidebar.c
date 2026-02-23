@@ -304,24 +304,15 @@ static gboolean populate_step(gpointer data) {
         GList *subdirs = NULL;
         GList *files = NULL;
 
+        static const char *excluded_dirs[] = {
+            "node_modules", "vendor", "venv", "env",
+            "__pycache__", ".tox", "dist", "build",
+            "target", "out", "coverage", NULL
+        };
+
         while ((entry = readdir(dir))) {
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
             if (entry->d_name[0] == '.') continue;
-
-            // Skip known heavy/irrelevant directories
-            static const char *excluded_dirs[] = {
-                "node_modules", "vendor", "venv", "env",
-                "__pycache__", ".tox", "dist", "build",
-                "target", "out", "coverage", NULL
-            };
-            gboolean skip = FALSE;
-            for (int i = 0; excluded_dirs[i]; i++) {
-                if (strcmp(entry->d_name, excluded_dirs[i]) == 0) {
-                    skip = TRUE;
-                    break;
-                }
-            }
-            if (skip) continue;
 
             char *name = g_strdup(entry->d_name);
             char full_path[1024];
@@ -349,11 +340,22 @@ static gboolean populate_step(gpointer data) {
             GtkTreeIter iter;
             add_to_tree(full_path, name, "folder-symbolic", task->has_parent ? &task->parent_iter : NULL, &iter);
 
-            DirTask *subtask = g_new0(DirTask, 1);
-            subtask->path = g_strdup(full_path);
-            subtask->parent_iter = iter;
-            subtask->has_parent = TRUE;
-            g_queue_push_tail(populate_ctx->queue, subtask);
+            // Skip indexing contents of heavy directories
+            gboolean skip_contents = FALSE;
+            for (int i = 0; excluded_dirs[i]; i++) {
+                if (strcmp(name, excluded_dirs[i]) == 0) {
+                    skip_contents = TRUE;
+                    break;
+                }
+            }
+
+            if (!skip_contents) {
+                DirTask *subtask = g_new0(DirTask, 1);
+                subtask->path = g_strdup(full_path);
+                subtask->parent_iter = iter;
+                subtask->has_parent = TRUE;
+                g_queue_push_tail(populate_ctx->queue, subtask);
+            }
             
             file_list = g_list_append(file_list, g_strdup(full_path));
         }
