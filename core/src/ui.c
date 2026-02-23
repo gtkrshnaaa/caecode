@@ -479,6 +479,24 @@ static GtkWidget* create_bottom_panel() {
 GtkWidget *bottom_terminal_0 = NULL;
 GtkWidget *right_terminal = NULL;
 
+static void spawn_terminal_shell(VteTerminal *terminal) {
+    char **envp = g_get_environ();
+    char **command = (char *[]){ "/bin/bash", NULL };
+    const char *work_dir = (strlen(current_folder) > 0) ? current_folder : NULL;
+
+    vte_terminal_spawn_async(terminal, VTE_PTY_DEFAULT, work_dir, command, envp, 
+                             G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, -1, NULL, NULL, NULL);
+    g_strfreev(envp);
+}
+
+static void on_terminal_child_exited(VteTerminal *terminal, gint status, gpointer user_data) {
+    if (GTK_WIDGET(terminal) == bottom_terminal_0 || GTK_WIDGET(terminal) == right_terminal) {
+        // Clear screen and respawn
+        vte_terminal_feed(terminal, "\f", -1);
+        spawn_terminal_shell(terminal);
+    }
+}
+
 void create_new_terminal() {
     static int term_count = -1;
     term_count++;
@@ -491,14 +509,10 @@ void create_new_terminal() {
     
     if (term_count == 0) {
         bottom_terminal_0 = terminal;
+        g_signal_connect(terminal, "child-exited", G_CALLBACK(on_terminal_child_exited), NULL);
     }
     
-    char **envp = g_get_environ();
-    char **command = (char *[]){ "/bin/bash", NULL };
-    const char *work_dir = (strlen(current_folder) > 0) ? current_folder : NULL;
-
-    vte_terminal_spawn_async(VTE_TERMINAL(terminal), VTE_PTY_DEFAULT, work_dir, command, envp, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, -1, NULL, NULL, NULL);
-    g_strfreev(envp);
+    spawn_terminal_shell(VTE_TERMINAL(terminal));
 
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(scrolled_window), terminal);
@@ -556,12 +570,8 @@ static GtkWidget* create_chat_panel() {
     gtk_widget_set_name(terminal, "vte-terminal-right");
     vte_terminal_set_scrollback_lines(VTE_TERMINAL(terminal), 10000);
     
-    char **envp = g_get_environ();
-    char **command = (char *[]){ "/bin/bash", NULL };
-    const char *work_dir = (strlen(current_folder) > 0) ? current_folder : NULL;
-
-    vte_terminal_spawn_async(VTE_TERMINAL(terminal), VTE_PTY_DEFAULT, work_dir, command, envp, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, -1, NULL, NULL, NULL);
-    g_strfreev(envp);
+    g_signal_connect(terminal, "child-exited", G_CALLBACK(on_terminal_child_exited), NULL);
+    spawn_terminal_shell(VTE_TERMINAL(terminal));
 
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(scrolled_window), terminal);
