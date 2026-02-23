@@ -584,7 +584,6 @@ static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColu
                         char *argv[] = { "xdg-open", filepath, NULL };
                         g_spawn_async(NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL);
                         g_free(filepath);
-                        gtk_tree_path_free(path);
                         return; // Prevent fallback to text editor
                     }
                 }
