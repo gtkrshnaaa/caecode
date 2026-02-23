@@ -12,7 +12,7 @@ BUILD_DIR = build
 BIN_TARGET = $(BIN_DIR)/$(TARGET)
 
 # Packaging
-VERSION ?= 0.1.5
+VERSION ?= 0.1.6
 ARCH ?= $(shell dpkg --print-architecture 2>/dev/null || echo amd64)
 PKG_ROOT = $(BUILD_DIR)/caecode_$(VERSION)
 DEB_FILE = $(BUILD_DIR)/caecode_$(VERSION)_$(ARCH).deb
