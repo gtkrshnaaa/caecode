@@ -188,8 +188,8 @@ void apply_theme(int index) {
             "statusbar { border-top: 1px solid %s; }"
             ".dim-label { opacity: 0.6; }"
             "#source-view text { font-weight: 600; }"
-            "treeview row:hover, list row:hover, row:hover { background-color: %s; }"
-            "button:hover { background-color: %s; }",
+            "treeview.view row:hover, list row:hover, row:hover { background-color: %s !important; }"
+            "button:hover { background-color: %s !important; }",
             bg_color, fg_color,
             (current_theme_idx == 0) ? "#252525" : "#F3F3F3", // sidebar header bg
             (current_theme_idx == 0) ? "#333333" : "#DDDDDD", // sidebar header border
