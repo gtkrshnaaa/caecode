@@ -183,7 +183,8 @@ void apply_theme(int index) {
             "#path-bar { background-color: %s; border-bottom: 1px solid %s; }"
             "#path-label { font-size: 8.5pt; color: %s; opacity: 0.7; }"
             "treeview { padding-bottom: 100px; }"
-            "treeview:selected { background-color: %s; }"
+            "treeview:selected, list row:selected, row:selected { background-color: rgba(53, 132, 228, 0.2); color: inherit; }"
+            "selection { background-color: rgba(53, 132, 228, 0.2); }"
             "statusbar { border-top: 1px solid %s; }"
             ".dim-label { opacity: 0.6; }"
             "#source-view text { font-weight: 600; }",
@@ -194,7 +195,6 @@ void apply_theme(int index) {
             (current_theme_idx == 0) ? "#252525" : "#F8F8F8", // path bar bg (subtle)
             (current_theme_idx == 0) ? "#2a2a2a" : "#EEEEEE", // path bar border
             fg_color, // path label color
-            (current_theme_idx == 0) ? "#333333" : "#EEEEEE", // selection color
             (current_theme_idx == 0) ? "#222222" : "#DDDDDD"  // statusbar border
         );
         
@@ -231,7 +231,7 @@ void apply_theme(int index) {
         char *term_css = g_strdup_printf(
             ".terminal-toolbar { background-color: %s; border-bottom: 1px solid %s; }"
             ".terminal-header-item { padding: 5px 10px; color: %s; opacity: 0.7; }"
-            ".terminal-header-item.active { opacity: 1.0; border-bottom: 2px solid #3584e4; }"
+            ".terminal-header-item.active { opacity: 1.0; border-bottom: 2px solid rgba(53, 132, 228, 0.4); }"
             ".terminal-session-list { background-color: %s; border-left: 1px solid %s; }",
             (current_theme_idx == 0) ? "#252525" : "#F3F3F3",
             (current_theme_idx == 0) ? "#333333" : "#DDDDDD",
