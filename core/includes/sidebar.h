@@ -11,4 +11,6 @@ void collapse_all_folders();
 void update_git_status();
 const char* get_git_status_letter(const char *path);
 
+void cleanup_sidebar();
+
 #endif // SIDEBAR_H

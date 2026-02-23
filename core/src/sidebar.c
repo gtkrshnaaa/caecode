@@ -514,6 +514,23 @@ void collapse_all_folders() {
     }
 }
 
+void cleanup_sidebar() {
+    if (git_poll_timeout_id > 0) {
+        g_source_remove(git_poll_timeout_id);
+        git_poll_timeout_id = 0;
+    }
+    if (refresh_timeout_id > 0) {
+        g_source_remove(refresh_timeout_id);
+        refresh_timeout_id = 0;
+    }
+    if (folder_monitor) {
+        g_file_monitor_cancel(folder_monitor);
+        g_object_unref(folder_monitor);
+        folder_monitor = NULL;
+    }
+    stop_population_if_running();
+}
+
 
 static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColumn *col, gpointer user_data) {
     GtkTreeIter iter;
