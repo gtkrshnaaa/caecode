@@ -308,6 +308,21 @@ static gboolean populate_step(gpointer data) {
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
             if (entry->d_name[0] == '.') continue;
 
+            // Skip known heavy/irrelevant directories
+            static const char *excluded_dirs[] = {
+                "node_modules", "vendor", "venv", "env",
+                "__pycache__", ".tox", "dist", "build",
+                "target", "out", "coverage", NULL
+            };
+            gboolean skip = FALSE;
+            for (int i = 0; excluded_dirs[i]; i++) {
+                if (strcmp(entry->d_name, excluded_dirs[i]) == 0) {
+                    skip = TRUE;
+                    break;
+                }
+            }
+            if (skip) continue;
+
             char *name = g_strdup(entry->d_name);
             char full_path[1024];
             snprintf(full_path, sizeof(full_path), "%s/%s", task->path, name);
