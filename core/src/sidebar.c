@@ -578,6 +578,59 @@ static void on_row_activated(GtkTreeView *tv, GtkTreePath *path, GtkTreeViewColu
     }
 }
 
+static void copy_relative_path(GtkWidget *menuitem, gpointer user_data) {
+    char *filepath = (char *)user_data;
+    if (filepath && strlen(current_folder) > 0) {
+        // Calculate relative path
+        const char *rel_path = filepath;
+        size_t folder_len = strlen(current_folder);
+        if (strncmp(filepath, current_folder, folder_len) == 0) {
+            rel_path = filepath + folder_len;
+            if (rel_path[0] == '/') {
+                rel_path++;
+            }
+        }
+        
+        GtkClipboard *clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+        gtk_clipboard_set_text(clipboard, rel_path, -1);
+        
+        char msg[1024];
+        snprintf(msg, sizeof(msg), "Copied relative path: %s", rel_path);
+        set_status_message(msg);
+    }
+    g_free(filepath);
+}
+
+static gboolean on_tree_view_button_press(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
+    if (event->type == GDK_BUTTON_PRESS && event->button == 3) { // Right click
+        GtkTreePath *path;
+        if (gtk_tree_view_get_path_at_pos(GTK_TREE_VIEW(widget), event->x, event->y, &path, NULL, NULL, NULL)) {
+            GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(widget));
+            GtkTreeIter iter;
+            if (gtk_tree_model_get_iter(model, &iter, path)) {
+                char *filepath;
+                gtk_tree_model_get(model, &iter, 2, &filepath, -1);
+                
+                GtkWidget *menu = gtk_menu_new();
+                GtkWidget *item_copy = gtk_menu_item_new_with_label("Copy Relative Path");
+                
+                g_signal_connect(item_copy, "activate", G_CALLBACK(copy_relative_path), g_strdup(filepath));
+                
+                gtk_menu_shell_append(GTK_MENU_SHELL(menu), item_copy);
+                gtk_widget_show_all(menu);
+                
+                // Show menu
+                gtk_menu_popup_at_pointer(GTK_MENU(menu), (GdkEvent*)event);
+                
+                g_free(filepath);
+            }
+            gtk_tree_path_free(path);
+        }
+        return TRUE; // Event handled
+    }
+    return FALSE;
+}
+
 GtkTreeViewColumn *sidebar_column = NULL;
 
 void init_sidebar() {
@@ -612,6 +665,7 @@ void init_sidebar() {
     gtk_tree_view_append_column(GTK_TREE_VIEW(tree_view), column);
 
     g_signal_connect(tree_view, "row-activated", G_CALLBACK(on_row_activated), NULL);
+    g_signal_connect(tree_view, "button-press-event", G_CALLBACK(on_tree_view_button_press), NULL);
 
     // Initial background git poll
     if (git_poll_timeout_id == 0) {
