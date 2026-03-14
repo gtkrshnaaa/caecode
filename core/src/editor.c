@@ -189,7 +189,8 @@ void apply_theme(int index) {
             ".dim-label { opacity: 0.6; }"
             "#source-view text { font-weight: 600; }"
             "treeview.view row:hover, list row:hover, row:hover { background-color: %s !important; }"
-            "button:hover { background-color: %s !important; }",
+            "button:hover { background-color: %s !important; }"
+            ".terminal-header-btn { padding: 0px 2px; min-height: 22px; min-width: 22px; margin: 0; }",
             bg_color, fg_color,
             (current_theme_idx == 0) ? "#252525" : "#F3F3F3", // sidebar header bg
             (current_theme_idx == 0) ? "#333333" : "#DDDDDD", // sidebar header border
