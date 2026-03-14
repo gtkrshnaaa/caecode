@@ -437,9 +437,7 @@ static GtkWidget* create_empty_state() {
 static void on_bottom_panel_size_allocate(GtkWidget *widget, GdkRectangle *allocation, gpointer user_data) {
     GtkPaned *paned = GTK_PANED(user_data);
     int total_width = allocation->width;
-    // Lock the list (right side) to 15% of total width.
-    // So the handle position (left side width) should be 85%.
-    int position = (int)(total_width * 0.85);
+    int position = total_width - 35;
     gtk_paned_set_position(paned, position);
 }
 
@@ -447,6 +445,37 @@ static void on_terminal_list_row_selected(GtkListBox *list, GtkListBoxRow *row, 
     if (!row) return;
     const char *name = g_object_get_data(G_OBJECT(row), "terminal-name");
     gtk_stack_set_visible_child_name(GTK_STACK(terminal_stack), name);
+}
+
+static void on_kill_terminal_clicked(GtkButton *btn, gpointer user_data) {
+    GtkListBoxRow *row = gtk_list_box_get_selected_row(GTK_LIST_BOX(terminal_list));
+    if (!row) return;
+
+    const char *name = g_object_get_data(G_OBJECT(row), "terminal-name");
+    if (!name) return;
+
+    // Prevent killing the permanent terminal (index 0)
+    if (strcmp(name, "term-0") == 0) {
+        set_status_message("Permanent terminal cannot be closed");
+        return;
+    }
+
+    // Find successor row before destroying this one
+    int idx = gtk_list_box_row_get_index(row);
+    GtkListBoxRow *neighbor = gtk_list_box_get_row_at_index(GTK_LIST_BOX(terminal_list), idx + 1);
+    if (!neighbor && idx > 0) {
+        neighbor = gtk_list_box_get_row_at_index(GTK_LIST_BOX(terminal_list), idx - 1);
+    }
+
+    if (neighbor) {
+        gtk_list_box_select_row(GTK_LIST_BOX(terminal_list), neighbor);
+    }
+
+    GtkWidget *terminal_page = gtk_stack_get_child_by_name(GTK_STACK(terminal_stack), name);
+    if (terminal_page) {
+        gtk_widget_destroy(terminal_page);
+    }
+    gtk_widget_destroy(GTK_WIDGET(row));
 }
 
 static GtkWidget* create_bottom_panel() {
@@ -466,13 +495,29 @@ static GtkWidget* create_bottom_panel() {
     gtk_box_pack_start(GTK_BOX(header), title, FALSE, FALSE, 0);
     gtk_widget_set_margin_start(title, 10);
     
-    GtkWidget *header_actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    GtkWidget *header_actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    
     GtkWidget *btn_new = gtk_button_new_from_icon_name("list-add-symbolic", GTK_ICON_SIZE_MENU);
     gtk_button_set_relief(GTK_BUTTON(btn_new), GTK_RELIEF_NONE);
+    gtk_style_context_add_class(gtk_widget_get_style_context(btn_new), "terminal-header-btn");
+    gtk_widget_set_tooltip_text(btn_new, "New Terminal");
     g_signal_connect(btn_new, "clicked", G_CALLBACK(create_new_terminal), NULL);
     gtk_box_pack_start(GTK_BOX(header_actions), btn_new, FALSE, FALSE, 0);
+
+    // btn_kill is placed in a 35px wide box to align with the terminal tab bar
+    GtkWidget *kill_container = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_size_request(kill_container, 35, -1);
     
-    gtk_box_pack_end(GTK_BOX(header), header_actions, FALSE, FALSE, 10);
+    GtkWidget *btn_kill = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
+    gtk_button_set_relief(GTK_BUTTON(btn_kill), GTK_RELIEF_NONE);
+    gtk_style_context_add_class(gtk_widget_get_style_context(btn_kill), "terminal-header-btn");
+    gtk_widget_set_tooltip_text(btn_kill, "Kill Active Terminal");
+    g_signal_connect(btn_kill, "clicked", G_CALLBACK(on_kill_terminal_clicked), NULL);
+    gtk_box_pack_start(GTK_BOX(kill_container), btn_kill, TRUE, TRUE, 0);
+    
+    gtk_box_pack_start(GTK_BOX(header_actions), kill_container, FALSE, FALSE, 0);
+    
+    gtk_box_pack_end(GTK_BOX(header), header_actions, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), header, FALSE, FALSE, 0);
 
     // Main Content: Terminal + List
@@ -485,7 +530,8 @@ static GtkWidget* create_bottom_panel() {
     
     GtkWidget *list_scrolled = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(list_scrolled), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-    gtk_widget_set_size_request(list_scrolled, 150, -1);
+    // Shorten sidebar width to 35px for minimalist icon-only look
+    gtk_widget_set_size_request(list_scrolled, 35, -1);
     gtk_style_context_add_class(gtk_widget_get_style_context(list_scrolled), "terminal-session-list");
     
     terminal_list = gtk_list_box_new();
@@ -551,26 +597,22 @@ void create_new_terminal() {
     gtk_stack_add_named(GTK_STACK(terminal_stack), scrolled_window, term_id);
 
     // List Row
-    GtkWidget *row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    GtkWidget *row_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_halign(row_box, GTK_ALIGN_CENTER);
     GtkWidget *icon = gtk_image_new_from_icon_name("utilities-terminal-symbolic", GTK_ICON_SIZE_MENU);
-    gtk_box_pack_start(GTK_BOX(row_box), icon, FALSE, FALSE, 5);
+    gtk_style_context_add_class(gtk_widget_get_style_context(icon), "terminal-row-icon");
+    gtk_box_pack_start(GTK_BOX(row_box), icon, TRUE, TRUE, 0);
     
-    char label_text[32];
-    sprintf(label_text, "bash (%d)", term_count);
-    GtkWidget *label = gtk_label_new(label_text);
-    gtk_box_pack_start(GTK_BOX(row_box), label, TRUE, TRUE, 0);
-    
-    GtkWidget *btn_close = NULL;
-    if (term_count > 0) {
-        btn_close = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
-        gtk_button_set_relief(GTK_BUTTON(btn_close), GTK_RELIEF_NONE);
-        gtk_box_pack_start(GTK_BOX(row_box), btn_close, FALSE, FALSE, 0);
-    }
     gtk_widget_show_all(row_box);
 
     GtkWidget *list_row = gtk_list_box_row_new();
     gtk_container_add(GTK_CONTAINER(list_row), row_box);
     g_object_set_data_full(G_OBJECT(list_row), "terminal-name", g_strdup(term_id), g_free);
+    
+    char label_text[32];
+    sprintf(label_text, "bash (%d)", term_count);
+    gtk_widget_set_tooltip_text(list_row, label_text);
+
     gtk_widget_show_all(list_row);
     
     gtk_list_box_insert(GTK_LIST_BOX(terminal_list), list_row, -1);
@@ -579,11 +621,8 @@ void create_new_terminal() {
     gtk_list_box_select_row(GTK_LIST_BOX(terminal_list), GTK_LIST_BOX_ROW(list_row));
     
     // Memory/Widget Management
-    if (term_count > 0) {
-        g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), scrolled_window);
-        g_signal_connect_swapped(btn_close, "clicked", G_CALLBACK(gtk_widget_destroy), list_row);
-        g_signal_connect_swapped(terminal, "child-exited", G_CALLBACK(gtk_widget_destroy), list_row);
-    }
+    // Connection to destroy page when row is destroyed handled in on_kill_terminal_clicked or by child exit
+    g_signal_connect_swapped(terminal, "child-exited", G_CALLBACK(gtk_widget_destroy), list_row);
 
     // Ensure new terminal inherits correct theme colors
     apply_theme(current_theme_idx);
