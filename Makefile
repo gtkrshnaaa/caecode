@@ -69,6 +69,28 @@ uninstall:
 	@sudo dpkg -r caecode || { echo "Package 'caecode' may not be installed or removal failed."; }
 	@sudo rm -rf /usr/share/caecode
 
+# Generate a codebase listing for analysis
+list:
+	@echo "Generating codebase listing..."
+	@mkdir -p z_listing
+	@printf "%s\n" "================================================================================" > z_listing/caecodelisting.txt
+	@printf "%s\n" "PROJECT: Caecode - Lightweight premium code editor for GNOME" >> z_listing/caecodelisting.txt
+	@printf "%s\n" "DESCRIPTION: Caecode is a high-performance, minimalist code editor built with" >> z_listing/caecodelisting.txt
+	@printf "%s\n" "             GTK+ 3 and VTE. It features a compact terminal UI, sidebar explorer," >> z_listing/caecodelisting.txt
+	@printf "%s\n" "             and integrated developer tools with a premium aesthetic." >> z_listing/caecodelisting.txt
+	@printf "%s\n" "COPYRIGHT: (c) 2026 Gilang Teja Krishna" >> z_listing/caecodelisting.txt
+	@printf "%s\n" "URL: https://github.com/gtkrshnaaa" >> z_listing/caecodelisting.txt
+	@printf "%s\n" "================================================================================" >> z_listing/caecodelisting.txt
+	@printf "\n" >> z_listing/caecodelisting.txt
+	@for file in Makefile *.sh $$(find core -type f); do \
+		if [ -f "$$file" ]; then \
+			printf "%s\n" "--- FILE: $$file ---" >> z_listing/caecodelisting.txt; \
+			cat "$$file" >> z_listing/caecodelisting.txt; \
+			printf "\n\n" >> z_listing/caecodelisting.txt; \
+		fi \
+	done
+	@echo "Codebase listing saved to z_listing/caecodelisting.txt"
+
 clean:
 	rm -rf $(BIN_DIR) $(BUILD_DIR)
 
