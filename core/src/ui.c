@@ -684,7 +684,7 @@ void create_main_window() {
 
     gtk_box_pack_start(GTK_BOX(vbox), main_h_paned, TRUE, TRUE, 0);
 
-    // Advanced Status Bar (v0.2.6)
+    // Advanced Status Bar (v0.2.7)
     status_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_name(status_bar, "status-bar-box");
     
